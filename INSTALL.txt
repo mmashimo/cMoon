@@ -26,11 +26,9 @@ You can use Visual Studio 2017/2019 - you will need to tweak CMake
 
 
 
-Install/build - gcc/mingw:
--------------
-1) Make 'build' directory (in <repo>/cMoon):
-    mkdir build
-2) Go to the directory:
+Build - gcc/mingw:
+-----------------
+2) Go to '<repo>/cMoon/build' directory:
     cd build
 3) Create make file:
     cmake ..
@@ -41,15 +39,15 @@ Install/build - gcc/mingw:
 
 Linux (CMake) - Re-build
 ---------------------
-1) Go to generic "build" directory:
+1) Go to "<repo>/cMoon/build" directory:
 	cd build
-2) You can clear out everything else:
+2) You can clear out previous 'cmake' contents:
     - CMakeFiles (dir)
 	- CMakeCache.txt
 	- Makefile
 	- cmake_install.cmake
 	- cMoon (executable, if you want to remove old code)
-3) Make sure you have 'cMoonConfig.h' and 'cMoonConfig.h.in' in the 'build' directory
+3) Make sure you have 'cMoonConfig.h' in the 'build' directory
 4) Run CMake:
 	cmake ..
 5) Make:
