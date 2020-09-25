@@ -322,7 +322,7 @@ void printExtraHelp(const char* options)
 	{
 		std::cout << "Help content: '" << options << "' not found." << std::endl;
 		std::cout << "Available:" << std::endl;
-		std::cout << "  'all' or 'args'   - prints all command line arguments options" << std::endl;
+		std::cout << "  'all' or 'args'   - prints command line arguments options" << std::endl;
 		std::cout << "  'notes'           - app notes" << std::endl;
 		std::cout << "  'verbose' or '-v' - verbose mode" << std::endl;
 		std::cout << "  'version'         - past versions" << std::endl;
@@ -420,9 +420,9 @@ int main(int argc, char** argv)
 							// Process options
 							// NOTE: decrecatedbut POSIX uses 'case'
 	#ifdef WIN32
-							if (_strnicmp(options, "help", 5) == 0)
+							if (_strnicmp(options, "help", 4) == 0)
 	#else
-							if (strncasecmp(options, "help", 5) == 0)
+							if (strncasecmp(options, "help", 4) == 0)
 	#endif
 							{
 								// Look for next argument that is not zero

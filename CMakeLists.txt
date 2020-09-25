@@ -6,6 +6,10 @@ project (cMoon)
 set (cMoon_VERSION_MAJOR 1)
 set (cMoon_VERSION_MINOR 0)
 
+# Source code directory (include files are also in it)
+set (CMOON_SOURCE_DIR "${PROJECT_SOURCE_DIR}/src")
+
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   set (CMAKE_CXX_FLAGS "--std=c++11 ${CMAKE_CXX_FLAGS}")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -19,8 +23,8 @@ endif ()
 # configure a header file to pass some of the CMake settings
 # to the source code
 configure_file (
-  "${PROJECT_BINARY_DIR}/cMoonConfig.h"
-  "${PROJECT_SOURCE_DIR}/cMoonConfig.h.in"
+  "${CMOON_SOURCE_DIR}/cMoonConfig.h"
+  "${PROJECT_BINARY_DIR}/cMoonConfig.h.in"
   )
 
 set (CMOON_SRCS
@@ -37,7 +41,7 @@ set (CMOON_SRCS
 # add_library(cMoon_obj OBJECT ${CMOON_SRCS})
 
 # add the binary tree to the search path for include files
-# so that we will find cMoonConfig.h (${PROJECT_BINARY_DIR})
+# so that we will find cMoonConfig.h
 # NOTE: source code includes are in the current source directory
 include_directories("${PROJECT_BINARY_DIR}")
 
