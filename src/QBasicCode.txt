@@ -1,0 +1,577 @@
+
+'----------------Sun/Moon -----------
+'*********************************************************
+'   This program will calculate the position of the Sun
+'   using a low precision method found on page C24 of the
+'   1996 Astronomical Almanac.
+'
+'   The method is good to 0.01 degrees in the sky over the
+'   period 1950 to 2050.
+'
+'   QBASIC program by Keith Burnett (kburnett@geocity.com)
+'
+'
+'   Work in double precision and define some constants
+'
+DEFDBL A-Z
+pr1$ = "\         \#####.##"
+pr2$ = "\         \#####.#####"
+pr3$ = "\         \#####.###"
+pi = 4 * ATN(1)
+tpi = 2 * pi
+twopi = tpi
+degs = 180 / pi
+rads = pi / 180
+'
+'   Get the days to J2000
+'   h is UT in decimal hours
+'   FNday only works between 1901 to 2099 - see Meeus chapter 7
+'
+DEF FNday (y, m, d, h) = 367 * y - 7 * (y + (m + 9) \ 12) \ 4 + 275 * m \ 9 + d - 730531.5 + h / 24
+'
+'   define some arc cos and arc sin functions and a modified inverse
+'   tangent function
+'
+DEF FNacos (x)
+    s = SQR(1 - x * x)
+    FNacos = ATN(s / x)
+END DEF
+DEF FNasin (x)
+    c = SQR(1 - x * x)
+    FNasin = ATN(x / c)
+END DEF
+'
+'   the atn2 function below returns an angle in the range 0 to two pi
+'   depending on the signs of x and y.
+'
+DEF FNatn2 (y, x)
+    a = ATN(y / x)
+    IF x < 0 THEN a = a + pi
+    IF (y < 0) AND (x > 0) THEN a = a + tpi
+    FNatn2 = a
+END DEF
+'
+'   the function below returns the true integer part,
+'   even for negative numbers
+'
+DEF FNipart (x) = SGN(x) * INT(ABS(x))
+'
+'   the function below returns an angle in the range
+'   0 to two pi
+'
+DEF FNrange (x)
+    b = x / tpi
+    a = tpi * (b - FNipart(b))
+    IF a < 0 THEN a = tpi + a
+    FNrange = a
+END DEF
+'
+'   Find the ecliptic longitude of the Sun
+'
+DEF FNsun (d)
+'
+'   mean longitude of the Sun
+'
+L = FNrange(280.461 * rads + .9856474# * rads * d)
+'
+'   mean anomaly of the Sun
+'
+g = FNrange(357.528 * rads + .9856003# * rads * d)
+'
+'   Ecliptic longitude of the Sun
+'
+FNsun = FNrange(L + 1.915 * rads * SIN(g) + .02 * rads * SIN(2 * g))
+'
+'   Ecliptic latitude is assumed to be zero by definition
+'
+END DEF
+'
+'
+'
+CLS
+'
+'    get the date and time from the user
+'
+INPUT "  year  : ", y
+INPUT "  month : ", m
+INPUT "  day   : ", day
+INPUT "hour UT : ", h
+INPUT " minute : ", mins
+h = h + mins / 60
+d = FNday(y, m, day, h)
+'
+'   Use FNsun to find the ecliptic longitude of the
+'   Sun
+'
+lambda = FNsun(d)
+'
+'   Obliquity of the ecliptic
+'
+obliq = 23.439 * rads - .0000004# * rads * d
+'
+'   Find the RA and DEC of the Sun
+'
+alpha = FNatn2(COS(obliq) * SIN(lambda), COS(lambda))
+delta = FNasin(SIN(obliq) * SIN(lambda))
+'
+'   Find the Earth - Sun distance
+'
+r = 1.00014 - .01671 * COS(g) - .00014 * COS(2 * g)
+'
+'   Find the Equation of Time
+'
+equation = (L - alpha) * degs * 4
+'
+'   print results in decimal form
+'
+PRINT
+PRINT "Position of Sun"
+PRINT "==============="
+PRINT
+PRINT USING pr2$; "     days : "; d
+PRINT USING pr1$; "longitude : "; lambda * degs
+PRINT USING pr3$; "       RA : "; alpha * degs / 15
+PRINT USING pr1$; "      DEC : "; delta * degs
+PRINT USING pr2$; " distance : "; r
+PRINT USING pr1$; "eq time   : "; equation
+END
+'*********************************************************
+
+
+'---------------- Planets -----------
+' from: http://www.stargazing.net/kepler/ellipse.html
+'*********************************************************
+'   This program will calculate the positions of the
+'   major planets using the current 'osculating elements'
+'   from the Astronomical Almanac.
+'
+'   A simple elliptical orbit
+'   is assumed for both the planet and the Earth - no
+'   corrections are made from within the program as the
+'   osculating elements will already take account of
+'   perturbations.
+'
+'   The method used here is based on finding the rectangular
+'   coordinates of the planet and of the Earth, and then
+applying
+'   successive coordinate transformations to find the
+rectangular
+'   gocentric equatorial coordinates of the planet.
+'
+'   QBASIC program by Keith Burnett (kburnett@geocity.com)
+'
+'
+'   Work in double precision and define some constants
+'
+DEFDBL A-Z
+pr$ = "\         \#####.##"
+pr2$ = "\         \###.######"
+pi = 4 * ATN(1)
+tpi = 2 * pi
+twopi = tpi
+degs = 180 / pi
+rads = pi / 180
+'
+'   list of elements el()
+'   List of the osculating elements of the 9 major
+'   planets in the format used in the Astronomical
+'   Ephemeris. Item el(64) in list is the Julian date
+'   of the elements. Item el(65) is the epoch of the
+'   mean ecliptic and equinox the elements are referred to.
+'
+'   If you want positions referred to
+'   the mean equator and equinox of the date of the
+'   osculating elements, then use the elements listed
+'   on pages E4 and E5 of the AA. If you want the positions
+'   referred to the mean equator and equinox of J2000
+'   then use the elements found on page E3 of the AA.
+'
+'
+DIM el(9 * 7 + 2)
+'   below are the osculating elements for JD = 2450680.5
+'   referred to mean ecliptic and equinox of J2000
+'Mercury
+el(1) = 7.00507# * rads
+el(2) = 48.3339# * rads
+el(3) = 77.45399999999999# * rads
+el(4) = .3870978#
+el(5) = 4.092353# * rads
+el(6) = .2056324#
+el(7) = 314.42369# * rads
+'Venus
+el(8) = 3.39472# * rads
+el(9) = 76.6889# * rads
+el(10) = 131.761# * rads
+el(11) = .7233238#
+el(12) = 1.602158# * rads
+el(13) = .0067933#
+el(14) = 236.94045# * rads
+'Earth
+el(15) = .00041# * rads
+el(16) = 349.2# * rads
+el(17) = 102.8517# * rads
+el(18) = 1.00002#
+el(19) = .9855796# * rads
+el(20) = .0166967#
+el(21) = 328.40353# * rads
+'Mars
+el(22) = 1.84992# * rads
+el(23) = 49.5664# * rads
+el(24) = 336.0882# * rads
+el(25) = 1.5236365#
+el(26) = .5240613# * rads
+el(27) = .0934231#
+el(28) = 262.42784# * rads
+'Jupiter
+el(29) = 1.30463# * rads
+el(30) = 100.4713# * rads
+el(31) = 15.6978# * rads
+el(32) = 5.202597#
+el(33) = 8.309618000000001D-02 * rads
+el(34) = .0484646#
+el(35) = 322.55983# * rads
+'Saturn
+el(36) = 2.48524# * rads
+el(37) = 113.6358# * rads
+el(38) = 88.863# * rads
+el(39) = 9.571899999999999#
+el(40) = .03328656# * rads
+el(41) = .0531651#
+el(42) = 20.95759# * rads
+'Uranus
+el(43) = .77343# * rads
+el(44) = 74.0954# * rads
+el(45) = 175.6807# * rads
+el(46) = 19.30181#
+el(47) = .01162295# * rads
+el(48) = .0428959#
+el(49) = 303.18967# * rads
+'Neptune
+el(50) = 1.7681# * rads
+el(51) = 131.7925# * rads
+el(52) = 7.206# * rads
+el(53) = 30.26664#
+el(54) = .005919282# * rads
+el(55) = .0102981#
+el(56) = 299.8641# * rads
+'Pluto
+el(57) = 17.12137# * rads
+el(58) = 110.3833# * rads
+el(59) = 224.8025# * rads
+el(60) = 39.5804#
+el(61) = .003958072# * rads
+el(62) = .2501272#
+el(63) = 235.7656# * rads
+'Dates
+el(64) = 2450680.5# 'date of elements
+el(65) = 2451545#   'date of mean ecliptic and equinox of
+elements
+'
+'   Get the days to J2000
+'   h is UT in decimal hours
+'   FNday only works between 1901 to 2099 - see Meeus chapter 7
+'
+DEF FNday (y, m, d, h) = 367 * y - 7 * (y + (m + 9) \ 12) \ 4 +
+275 * m \ 9 + d - 730531.5 + h / 24
+'
+'   define some arc cos and arc sin functions and a modified
+inverse
+'   tangent function
+'
+DEF FNacos (x)
+    s = SQR(1 - x * x)
+    FNacos = ATN(s / x)
+END DEF
+DEF FNasin (x)
+    c = SQR(1 - x * x)
+    FNasin = ATN(x / c)
+END DEF
+'
+'   the atn2 function below returns an angle in the range 0 to
+two pi
+'   depending on the signs of x and y.
+'
+DEF FNatn2 (y, x)
+    a = ATN(y / x)
+    IF x < 0 THEN a = a + pi
+    IF (y < 0) AND (x > 0) THEN a = a + tpi
+    FNatn2 = a
+END DEF
+'
+'   the function below returns the true integer part,
+'   even for negative numbers
+'
+DEF FNipart (x) = SGN(x) * INT(ABS(x))
+'
+'   the function below returns an angle in the range
+'   0 to two pi
+'
+DEF FNrange (x)
+    b = x / tpi
+    a = tpi * (b - FNipart(b))
+    IF a < 0 THEN a = tpi + a
+    FNrange = a
+END DEF
+'
+DEF FNkep (m, ecc, eps)
+'
+'   returns the true anomaly given
+'   m - the mean anomaly in radians
+'   ecc - the eccentricity of the orbit
+'   eps - the convergence paramter (8 or 9 is usually fine
+'   12 or 14 for very accurate work)
+'
+e = m
+delta = .05#
+DO WHILE ABS(delta) >= 10 ^ -eps
+      delta = e - ecc * SIN(e) - m
+      e = e - delta / (1 - ecc * COS(e))
+LOOP
+v = 2 * ATN(((1 + ecc) / (1 - ecc)) ^ .5 * TAN(.5 * e))
+IF v < 0 THEN v = v + tpi
+FNkep = v
+END DEF
+'
+DEF FNdegmin (x)
+'   cosmetic function returns angular values as a made up
+decimal
+'   number  - ddd.mm - the digits after the decimal point are
+the
+'   minutes.
+a = FNipart(x)
+b = x - a
+e = FNipart(60 * b)
+'   deal with carry on minutes
+IF e >= 60 THEN
+    e = 0
+    a = a + 1
+END IF
+FNdegmin = a + e / 100
+END DEF
+'
+CLS
+'
+'    get the date and planet number from the user
+'
+INPUT "   year  : ", y
+INPUT "   month : ", m
+INPUT "   day   : ", day
+INPUT " hour UT : ", h
+INPUT "  minute : ", mins
+h = h + mins / 60
+INPUT "  planet : ", p
+d = FNday(y, m, day, h)
+PRINT USING pr$; "    days : "; d
+'
+'   get the osculating elements from the list
+'   using letters instead of the array element
+'   makes the program easier to read.
+'
+q = 7 * (p - 1)
+ip = el(q + 1)
+op = el(q + 2)
+pp = el(q + 3)
+ap = el(q + 4)
+np = el(q + 5)
+ep = el(q + 6)
+lp = el(q + 7)
+ie = el(15)
+oe = el(16)
+pe = el(17)
+ae = el(18)
+ne = el(19)
+ee = el(20)
+le = el(21)
+eldate = el(64) - 2451545#
+'
+'   now find position of Earth in orbit
+'
+me = FNrange(ne * (d - eldate) + le - pe)
+ve = FNkep(me, ee, 12)
+re = ae * (1 - ee * ee) / (1 + ee * COS(ve))
+xe = re * COS(ve + pe)
+ye = re * SIN(ve + pe)
+ze = 0
+PRINT
+PRINT "heliocentric coordinates of Earth"
+PRINT USING pr2$; "       X :"; xe
+PRINT USING pr2$; "       Y :"; ye
+PRINT USING pr2$; "       Z :"; ze
+'
+'   and position of planet in its orbit
+'
+mp = FNrange(np * (d - eldate) + lp - pp)
+vp = FNkep(mp, ep, 12)
+rp = ap * (1 - ep * ep) / (1 + ep * COS(vp))
+'
+'   heliocentric rectangular coordinates of planet
+'
+xh = rp * (COS(op) * COS(vp + pp - op) - SIN(op) * SIN(vp + pp -
+op) * COS(ip))
+yh = rp * (SIN(op) * COS(vp + pp - op) + COS(op) * SIN(vp + pp -
+op) * COS(ip))
+zh = rp * (SIN(vp + pp - op) * SIN(ip))
+PRINT
+PRINT "heliocentric coordinates of Planet"
+PRINT USING pr2$; "       X :"; xh
+PRINT USING pr2$; "       Y :"; yh
+PRINT USING pr2$; "       Z :"; zh
+'
+'   convert to geocentric rectangular coordinates
+'
+xg = xh - xe
+yg = yh - ye
+zg = zh
+'
+'   rotate around x axis from ecliptic to equatorial coords
+'
+ecl = 23.429292# * rads# 'value for J2000.0 frame
+xeq = xg
+yeq = yg * COS(ecl) - zg * SIN(ecl)
+zeq = yg * SIN(ecl) + zg * COS(ecl)
+'
+'   find the RA and DEC from the rectangular equatorial coords
+'
+ra = FNatn2(yeq, xeq)
+dec = ATN(zeq / SQR(xeq * xeq + yeq * yeq))
+rvec = SQR(xeq * xeq + yeq * yeq + zeq * zeq)
+PRINT
+PRINT "Equatorial coordinates of planet"
+PRINT USING pr$; "      RA : "; FNdegmin(ra * degs / 15)
+PRINT USING pr$; "     DEC : "; FNdegmin(dec * degs)
+PRINT USING pr2$; "Distance : "; rvec
+END
+'*********************************************************
+
+==============================================================================================
+Example:
+ year  : 1997
+   month : 6
+   day   : 21
+ hour UT : 0
+  minute : 0
+  planet : 4
+    days :  -924.50
+
+heliocentric coordinates of Earth
+       X :  -0.005159
+       Y :  -1.016252
+       Z :   0.000000
+
+heliocentric coordinates of Planet
+       X :  -1.186699
+       Y :  -1.031907
+       Z :   0.007558
+
+Equatorial coordinates of planet
+      RA :    12.03
+     DEC :     0.02
+Distance :   1.181669
+
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Some other websites:
+-------------------
+High accuracy perturbations of planets and object used for computing orbits:
+https://stjarnhimlen.se/comp/ppcomp.html
+
+Few notes (from website):
+--------
+Computation of time-scale (J2000):
+The time scale in these formulae are counted in days. Hours, minutes, seconds are expressed as fractions of a day. Day 0.0 occurs at 2000 Jan 0.0 UT (or 1999 Dec 31, 0:00 UT). This "day number" d is computed as follows (y=year, m=month, D=date, UT=UT in hours+decimals):
+
+    d = 367*y - 7 * ( y + (m+9)/12 ) / 4 + 275*m/9 + D - 730530
+
+Note that the formula above is only valid from March 1900 to February 2100.
+Below is another formula, which is valid over the entire Gregorian Calendar:
+
+    d = 367*y - 7 * ( y + (m+9)/12 ) / 4 - 3 * ( ( y + (m-9)/7 ) / 100 + 1 ) / 4 + 275*m/9 + D - 730515
+
+Note that ALL divisions here should be INTEGER divisions. In Pascal, use "div" instead of "/", in MS-Basic, use "\" instead of "/". In Fortran, C and C++ "/" can be used if both y and m are integers. Finally, include the time of the day, by adding:
+
+    d = d + UT/24.0        (this is a floating-point division)
+
+
+The primary orbital elements are here denoted as:
+
+    N = longitude of the ascending node
+    i = inclination to the ecliptic (plane of the Earth's orbit)
+    w = argument of perihelion
+    a = semi-major axis, or mean distance from Sun
+    e = eccentricity (0=circle, 0-1=ellipse, 1=parabola)
+    M = mean anomaly (0 at perihelion; increases uniformly with time)
+
+Related orbital elements are:
+
+    w1 = N + w   = longitude of perihelion
+    L  = M + w1  = mean longitude
+    q  = a*(1-e) = perihelion distance
+    Q  = a*(1+e) = aphelion distance
+    P  = a ^ 1.5 = orbital period (years if a is in AU, astronomical units)
+    T  = Epoch_of_M - (M(deg)/360_deg) / P  = time of perihelion
+    v  = true anomaly (angle between position and perihelion)
+
+Orbital elements of the Sun:
+
+    N = 0.0
+    i = 0.0
+    w = 282.9404 + 4.70935E-5 * d
+    a = 1.000000  (AU)
+    e = 0.016709 - 1.151E-9 * d
+    M = 356.0470 + 0.9856002585 * d
+
+Orbital elements of the Moon:
+
+    N = 125.1228 - 0.0529538083 * d
+    i = 5.1454
+    w = 318.0634 + 0.1643573223 * d
+    a = 60.2666  (Earth radii)
+    e = 0.054900
+    M = 115.3654 + 13.0649929509 * d
+
+
+The position of the Moon and of the planets
+-------------------------------------------
+Now we must solve Kepler's equation
+
+    M = e * sin(E) - E
+
+where we know M, the mean anomaly, and e, the eccentricity, and we want to find E, the eccentric anomaly.
+We start by computing a first approximation of E:
+
+    E = M + e * sin(M) * ( 1.0 + e * cos(M) )
+
+where E and M is in radians. If we want E and M in degrees instead, we need to insert a factor of 180/pi like this:
+
+    E = M + e*(180/pi) * sin(M) * ( 1.0 + e * cos(M) )
+
+If e, the eccentricity, is less than about 0.05-0.06, this approximation is sufficiently accurate. If the eccentricity is larger, set E0=E and then use this iteration formula (E and M in degrees):
+
+    E1 = E0 - ( E0 - e*(180/pi) * sin(E0) - M ) / ( 1 - e * cos(E0) )
+
+or (E and M in radians):
+
+    E1 = E0 - ( E0 - e * sin(E0) - M ) / ( 1 - e * cos(E0) )
+
+For each new iteration, replace E0 with E1. Iterate until E0 and E1 are sufficiently close together (about 0.001 degrees). For comet orbits with eccentricites close to one, a difference of less than 1E-4 or 1E-5 degrees should be required.
+
+If this iteration formula won't converge, the eccentricity is probably too close to one. Then you should instead use the formulae for near-parabolic or parabolic orbits.
+
+Now compute the planet's distance and true anomaly:
+
+    xv = r * cos(v) = a * ( cos(E) - e )
+    yv = r * sin(v) = a * ( sqrt(1.0 - e*e) * sin(E) )
+
+    v = atan2( yv, xv )
+    r = sqrt( xv*xv + yv*yv )
+
+
+
+---------------------------------------------------------------------------
+
+Conversion from RA-DEC to ALT-AZ:
+--------------------------------
+http://www.stargazing.net/kepler/altaz.html
+
+

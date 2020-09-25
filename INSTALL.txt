@@ -1,0 +1,69 @@
+cMoon - C++ Moon/Sun Program
+----------------------------
+cMoon is a simple program to show Julian date conversion with respect to Sunrise/set
+and the moon phases.
+
+Few things to note:
+	- Julian date computation is not based on an ephemeris, so it could have variations in seconds
+	- Daylight savings time is computed by LAT-LONG rather than by states. This can be overriden
+	  by forcing timezone value into program rather than its own LAT-LONG computation (which is
+	  broadly inaccurate)
+	- Altitudes are set at sea-level. You can add altitudes into the command line
+
+What you need:
+-------------
+Linux:
+- CMake (versiion 3.1 or better)
+- g++ and/or gcc (C99 works, C++11 is better)
+- make (GNU)
+
+Win7/10:
+- Cmake (version 3.1 or better)
+- mingw(64) - standard C99 / C++11 works
+- make
+
+You can use Visual Studio 2017/2019 - you will need to tweak CMake
+
+
+
+Install/build - gcc/mingw:
+-------------
+1) Make 'build' directory (in <repo>/cMoon):
+    mkdir build
+2) Go to the directory:
+    cd build
+3) Create make file:
+    cmake ..
+4) Make executable:
+    make
+5) Run program:
+    ./cMoon
+
+Linux (CMake) - Re-build
+---------------------
+1) Go to generic "build" directory:
+	cd build
+2) You can clear out everything else:
+    - CMakeFiles (dir)
+	- CMakeCache.txt
+	- Makefile
+	- cmake_install.cmake
+	- cMoon (executable, if you want to remove old code)
+3) Make sure you have 'cMoonConfig.h' and 'cMoonConfig.h.in' in the 'build' directory
+4) Run CMake:
+	cmake ..
+5) Make:
+	make
+6) Run program:
+	./cMoon
+
+Debugging (when necessary):
+---------
+1) Rerun CMake using (from "build" directory):
+	cmake -DCMAKE_BUILD_TYPE=Debug ..
+2) Use gdb
+
+Working with Visual Studio Code:
+-------------------------------
+- Open directory 'folder' to <repo>/cMoon
+
