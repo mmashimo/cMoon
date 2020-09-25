@@ -254,7 +254,7 @@ void printExtraHelp(const char* options)
 		std::cout << "Use: cMoon [-<options>][now][yyyy-mm-dd][hh:mm:ss][JD.time][--latlong LAT LONG]" << std::endl;
 		std::cout << "Options:" << std::endl;
 		std::cout << "  [-h][-H][-?]         - Prints help and exits (-?? will show versions)" << std::endl;
-		std::cout << "  [--help [guide]]     - More detailed help ([guide] yet-to-be build)" << std::endl;
+		std::cout << "  [--help [details]]   - More detailed help ([details] yet-to-be build)" << std::endl;
 		std::cout << "  [-mrsj]              - [m] Show moon-phase calculations" << std::endl;
 		std::cout << "                         [r] Show moon-rise/sun-rise [r] calculations" << std::endl;
 		std::cout << "                         [s] Show sunrise/set calculations" << std::endl;
