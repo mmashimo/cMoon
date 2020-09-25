@@ -32,11 +32,23 @@ Command Line Arguments and Program Adjustments:
 
 - Quick way of getting "help": **./cMoon -h**. This will give you all the options.
 
-- Getting LAT-LONG to computation. I am sure you are not in New Hampshire so you will need to specify your 'location'. LAT-LONG is WAAS, so this means that LAT defaults to "N" (positive LAT) and LONG "E" is positive - in NH, default location is LAT 42.81751 LONG -71.2781. A random elevation of 400-feet is set. You can change this by:
+- Current version (0.2) displays (more like dumps) all calculations. This could be overwhelming. To limit the output, use:
 
-> **./cMoon --latlong LAT.dddd -LONG.dddd --zone -5**  (note: "-" can be replaced with "W" - think it works. Decimal degrees)
+>**./cMoon -m** for moon phase calculations.
 
-- If you want to specify the date/time: **./cMoon YYYY-MM-DD hh:mm:ss**  (note: date uses "-" and time uses ":"). You can also use Julian date/time: **./cMoon JD.ddddd** (where "." is the differentiator)
+>**./cMoon -r** for moon-rise/sun-rise calculations.
+
+>**./cMoon -s** for sunrise/sunset calculations.
+
+- Getting LAT-LONG to computation. Unless you are in southern New Hampshire, you will want to specify your 'location'. LAT-LONG coordinates are in decimal-degrees. LAT defaults to "N" (positive LAT) and LONG to "E" (positive LONG). Default location (until I can get the INI file setup) is LAT 42.81751, LONG -71.2781. You can change this by:
+
+> **./cMoon --latlong LAT.dddd -LONG.dddd --zone -5**  (note: "-" can be replaced with "W" - think it works. Decimal degrees. Elevation is not settable, yet - working on that).
+
+- If you want to specify the date/time (instead of "now"): **./cMoon YYYY-MM-DD hh:mm:ss**  (note: date uses "-" and time uses ":"). You can also use Julian date/time: **./cMoon JD.ddddd** (where "." is the differentiator)
+
+- If you want to see all the internal calculations (but why?), you can put verbose mode:
+
+> **./cMoon -vA** to get all debug levels exposed. For help on debug mode, use **--help verbose**
 
 
 

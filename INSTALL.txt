@@ -41,7 +41,7 @@ Linux (CMake) - Re-build
 ---------------------
 1) Go to "<repo>/cMoon/build" directory:
 	cd build
-2) You can clear out previous 'cmake' contents:
+2) Clear out previous 'build' contents:
     - CMakeFiles (dir)
 	- CMakeCache.txt
 	- Makefile

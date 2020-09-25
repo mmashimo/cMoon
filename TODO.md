@@ -53,6 +53,10 @@ cMoon - TODO
 
 [ ] - Convert computation portion into C-libraries (use for MPU/ARM c-programs)
 
+>[ ] - Need unit-tests for each computation
+
+>[ ] - Need to doxygen docs generated
+
 [ ] - Access to Ephemeris:
 
 >[ ] - Find ephemeris site
