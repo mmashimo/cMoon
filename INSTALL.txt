@@ -15,11 +15,13 @@ What you need:
 Linux:
 - CMake (versiion 3.1 or better)
 - g++ and/or gcc (C99 works, C++11 is better)
+- boost (sudo apt-get install libboost-all-dev - make sure /usr/include/boost/property_tree has stuff)
 - make (GNU)
 
 Win7/10:
 - Cmake (version 3.1 or better)
 - mingw(64) - standard C99 / C++11 works
+- boost (https://sourceforge.net/projects/boost/files/boost-binaries)
 - make
 
 You can use Visual Studio 2017/2019 - you will need to tweak CMake
