@@ -3,7 +3,19 @@ Simple command-line app to compute moon phases, sunrise/sunset and positions of 
 
 Current version (v0.2) displays(dumps) all calculations when ./cMoon is invoked.
 
-See TODO.md for details of further development.
+Build:
+-----
+1) Need to have 'boost' libraries (libboost-all-dev)
+
+2) Create 'build' directory (for cmake and binary).
+
+3) cd build
+
+4) cmake ..
+
+5) make
+
+NOTE: I don't have 'make install' or Unit-tests, yet.
 
 Invocation:
 ----------
@@ -32,7 +44,7 @@ Command Line Arguments and Program Adjustments:
 
 - Quick way of getting "help": **./cMoon -h**. This will give you all the options.
 
-- Current version (0.2) displays (more like dumps) all calculations. This could be overwhelming. To limit the output, use:
+- Current version (0.3) displays (more like dumps) all calculations. This could be overwhelming. To limit the output, use:
 
 >**./cMoon -m** for moon phase calculations.
 
@@ -40,9 +52,9 @@ Command Line Arguments and Program Adjustments:
 
 >**./cMoon -s** for sunrise/sunset calculations.
 
-- Getting LAT-LONG to computation. Unless you are in southern New Hampshire, you will want to specify your 'location'. LAT-LONG coordinates are in decimal-degrees. LAT defaults to "N" (positive LAT) and LONG to "E" (positive LONG). Default location (until I can get the INI file setup) is LAT 42.81751, LONG -71.2781. You can change this by:
+- Your location (LAT-LONG) can be set using **<repo>/cMoon/cMoon.ini**. LAT-LONG coordinates are in decimal-degrees. LAT defaults to "N" (positive LAT) and LONG to "E" (negative LONG is "W"). You can change LAT on the fly (command line argument) by:
 
-> **./cMoon --latlong LAT.dddd -LONG.dddd --zone -5**  (note: "-" can be replaced with "W" - think it works. Decimal degrees. Elevation is not settable, yet - working on that).
+> **./cMoon --latlong LAT.dddd -LONG.dddd --elev <feet>**  (note: Decimal degrees. Elevation is in "feet").
 
 - If you want to specify the date/time (instead of "now"): **./cMoon YYYY-MM-DD hh:mm:ss**  (note: date uses "-" and time uses ":"). You can also use Julian date/time: **./cMoon JD.ddddd** (where "." is the differentiator)
 
@@ -50,6 +62,9 @@ Command Line Arguments and Program Adjustments:
 
 > **./cMoon -vA** to get all debug levels exposed. For help on debug mode, use **--help verbose**
 
+Features/Bug List:
+-----------------
+See TODO.txt for details of further development.
 
 
 
