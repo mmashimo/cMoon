@@ -20,10 +20,14 @@
 #include "ALocation.h"
 #include "APlanets.h"
 
+#include "settings.hpp"
+
 using namespace std;
 
+static std::string s_iniFile = "../cMoon.ini";
+
 // Header - if 0 - generic. If < 0, suppress
-static int s_HelpType = 0;
+static int  s_HelpType = 0;
 static bool s_processDate = true;
 
 static bool s_computeSun = false;
@@ -268,7 +272,10 @@ void printExtraHelp(const char* options)
 		std::cout << "  [hh:mm[:ss][ap][u]]  - Computes time assumes date set above [u=UTC]" << std::endl;
 		std::cout << "  [JD.time]            - Computes time using Julian date and time (decimal needed)" << std::endl;
 		std::cout << "  [--latlong LAT LONG] - sets the latitude and longitude for equations" << std::endl;
+		std::cout << "  [--elev ELEVATION]   - sets the elevation for equations" << std::endl;
 		std::cout << "  [--zone TIMEZONE]    - sets the timezone (float value - decimal not required)" << std::endl;
+		std::cout << "  [--ini <ini_file>]   - Use configuration from <ini_file> (in/from executable directory)" << std::endl;
+		std::cout << "  [--save[=<ini_file>]]- Save current configuration to INI or to <ini_file> (use '=' to set filename from exec-dir)" << std::endl;
 	}
 #ifdef WIN32
 	else if ((_strcmp(options, "notes") == 0)
@@ -351,7 +358,7 @@ void print_header(int details)
 	if (!(details & helpSuppressVersion))
 	{
 		// Version header
-		std::cout << "cMoon - version 0.2" << std::endl;
+		std::cout << "cMoon - Version " << cMoon_VERSION_MAJOR << "." << cMoon_VERSION_MINOR << std::endl;
 	}
 
 	std::cout << std::endl;
@@ -387,6 +394,7 @@ int main(int argc, char** argv)
 	AMoon moonObj;
 	ASun  sunObj;
 	APlanets planets;
+
 	bool bProcess = true;
 
 	if (argc > 1)
@@ -477,6 +485,28 @@ int main(int argc, char** argv)
 								{
 									std::cout << "Cannot set Timezone: Argument count " << argc << " is not " << i + 2 << std::endl;
 								}
+							}
+	#ifdef WIN32
+							else if (_strnicmp(options, "elevation", 4) == 0)
+	#else
+							else if (strncasecmp(options, "elevation", 4) == 0)
+	#endif
+							{
+								if ((i + 2) <= argc)
+								{
+									// Set the latitude
+									ALocation::m_elevation = atof(argv[i + 1]);
+									std::cout << "Setting Elevation (in feet): " << ALocation::m_elevation << std::endl;
+									i += 1;
+								}
+								else
+								{
+									std::cout << "Cannot set Eelvation: Argument count " << argc << " is not " << i + 2 << std::endl;
+								}
+							}
+							else
+							{
+								std::cout << "Don't know how to resolve '" << ar << "' - use '--help all'" << std::endl;
 							}
 						}
 						else
@@ -643,6 +673,9 @@ int main(int argc, char** argv)
 
 
 	print_header(s_HelpType);
+
+	Settings settings(s_iniFile);
+	std::cout << std::endl;
 
 	if (bProcess && dateObj.m_parsedCorrectly)
 	{
