@@ -1,13 +1,18 @@
 
 cmake_minimum_required (VERSION 3.0)
-project (cMoon)
+project (cMoon VERSION 0.3)
 
 # The version number.
-set (cMoon_VERSION_MAJOR 1)
-set (cMoon_VERSION_MINOR 0)
+# set (cMoon_VERSION_MAJOR 1)
+# set (cMoon_VERSION_MINOR 0)
+
+configure_file(cMoonConfig.h.in cMoonConfig.h)
 
 # Source code directory (include files are also in it)
 set (CMOON_SOURCE_DIR "${PROJECT_SOURCE_DIR}/src")
+
+# Make sure 'boost' is installed:
+find_package(Boost)
 
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -23,7 +28,7 @@ endif ()
 # configure a header file to pass some of the CMake settings
 # to the source code
 configure_file (
-  "${CMOON_SOURCE_DIR}/cMoonConfig.h"
+  "${PROJECT_BINARY_DIR}/cMoonConfig.h"
   "${PROJECT_BINARY_DIR}/cMoonConfig.h.in"
   )
 
