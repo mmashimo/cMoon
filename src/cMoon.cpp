@@ -1,5 +1,21 @@
-// cMoon.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
+/// @file
+///
+/// @brief This file is the main program entry for cMoon application.
+///
+/// @copyright 2019-2020 - M.Mashimo and all licensors. All rights reserved.
+///
+///  This program is free software: you can redistribute it and/or modify
+///  it under the terms of the GNU General Public License as published by
+///  the Free Software Foundation, either version 3 of the License, or
+///  any later version.
+///
+///  This program is distributed in the hope that it will be useful,
+///  but WITHOUT ANY WARRANTY; without even the implied warranty of
+///  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+///  GNU General Public License for more details.
+///
+///  You should have received a copy of the GNU General Public License
+///  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Used for Visual Studio, does nothing for g++
 #include "pch.h"
@@ -12,6 +28,8 @@
 #include <array>
 #include <vector>
 #include <ctime>
+
+#include <sys/stat.h>
 
 #include "cMoonConfig.h"
 
@@ -403,6 +421,9 @@ int main(int argc, char** argv)
 		static char s_tmp[1024];
 		bool bGoodDate = true;
 
+		std::string iniFile;
+		struct stat status;
+
 		for (int i = 1; i < argc; i++)
 		{
 			char* ar = argv[i];
@@ -502,6 +523,39 @@ int main(int argc, char** argv)
 								else
 								{
 									std::cout << "Cannot set Eelvation: Argument count " << argc << " is not " << i + 2 << std::endl;
+								}
+							}
+	#ifdef WIN32
+							else if (_strnicmp(options, "ini", 3) == 0)
+	#else
+							else if (strncasecmp(options, "ini", 3) == 0)
+	#endif
+							{
+								iniFile = argv[i + 1];
+								// Get configuration from INI file other than "../cMoon.ini"
+								if (stat(iniFile.c_str(), &status) == 0)
+								{
+									s_iniFile = iniFile;
+									std::cout << "Using '" << s_iniFile << "' for configuration." << std::endl;
+								}
+								else
+								{
+									std::cout << "Cannot use INI file '" << iniFile << "' -- not found" << std::endl;
+									bProcess = false;
+								}
+							}
+	#ifdef WIN32
+							else if (_strnicmp(options, "save", 4) == 0)
+	#else
+							else if (strncasecmp(options, "save", 4) == 0)
+	#endif
+							{
+								// Save configuration (set before arg) to INI file
+								// Look for "--save=<ini_file> to save other than "cMoon.ini"
+								if (options[4] == '=')
+								{
+									s_iniFile = options + 5;
+									Settings newSave(s_iniFile);
 								}
 							}
 							else

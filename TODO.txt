@@ -2,6 +2,8 @@ cMoon - TODO
 ------------
 
 [ ] - Correct CMake version (curently missing)
+    [x] - Need to add GPL license info on header
+    [ ] - Include COPY to include license info
 
 [ ] - Next Moon Phase should be selectable:
     [x] - *Default "Next Phase" should use current phase and compute next*
@@ -30,7 +32,7 @@ cMoon - TODO
     [ ] - Show Mean and Apparent Sidereal times
     [ ] - Convert quad (ra/dec) approximation for planets (possibly involved)
     [ ] - use sunrise/set for "visible" in addition to rise/set
-      
+
 [ ] - Show RA-Decl for:
     [ ] - Moon - Possibly compute using GPS
     [ ] - Sun - possibly compute using GPS
