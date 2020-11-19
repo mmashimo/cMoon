@@ -24,7 +24,13 @@
 #include <iostream>
 #include <cstdio>
 #include <cmath>
+
+#ifdef USE_IOMANIP
 #include <iomanip>
+#else
+#include <ctime>
+#endif
+
 #include <stdlib.h>
 
 #include "ASun.h"
@@ -206,7 +212,13 @@ void ASun::showSun(const ALocation& location, const ADateTime& procTime)
 	dateTime.convertJulianToTime(tmpJdTime, jTime);
 	time_t tmpTime = mktime(&jTime);
 
+#ifdef USE_IOMANIP
 	std::cout << std::put_time(localtime(&tmpTime), "%F %T %Z %z") << std::endl;
+#else
+	char tmpStr[128];
+	strftime(tmpStr, 128, "%F %T %Z %z", localtime(&tmpTime));
+	std::cout << tmpStr << std::endl;
+#endif
 
 	if (ADateTime::m_verboseLevel & DebugComputation)
 	{
@@ -218,7 +230,12 @@ void ASun::showSun(const ALocation& location, const ADateTime& procTime)
 	tmpJdTime = Jtransit + tzTime;
 	dateTime.convertJulianToTime(tmpJdTime, jTime);
 	tmpTime = mktime(&jTime);
+#ifdef USE_IOMANIP
 	std::cout << std::put_time(localtime(&tmpTime), "%F %T %Z %z") << std::endl;
+#else
+	strftime(tmpStr, 128, "%F %T %Z %z", localtime(&tmpTime));
+	std::cout << tmpStr << std::endl;
+#endif
 
 	if (ADateTime::m_verboseLevel & DebugComputation)
 	{
@@ -230,7 +247,13 @@ void ASun::showSun(const ALocation& location, const ADateTime& procTime)
 	tmpJdTime = Jset + tzTime;
 	dateTime.convertJulianToTime(tmpJdTime, jTime);
 	tmpTime = mktime(&jTime);
+
+#ifdef USE_IOMANIP
 	std::cout << std::put_time(localtime(&tmpTime), "%F %T %Z %z") << std::endl;
+#else
+	strftime(tmpStr, 128, "%F %T %Z %z", localtime(&tmpTime));
+	std::cout << tmpStr << std::endl;
+#endif
 
 	// NOTE: These are all Julian date and franctional time
 
