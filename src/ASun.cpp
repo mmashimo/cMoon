@@ -45,7 +45,7 @@ void ASun::setVerboseMode(const int level)
 
 
 // Computation of sunrise/sunset
-void ASun::showSun(const ADateTime& procTime)
+void ASun::showSun(const ALocation& location, const ADateTime& procTime)
 {
 	ADateTime dateTime(procTime);
 
@@ -74,14 +74,15 @@ void ASun::showSun(const ADateTime& procTime)
 	// Jnoon is the number of days since 2000-1-1-12:00pm (noon) = 2451545.
 	// double Jnoon = jd - 2451545. + 0.0008;
 	// NOTE: Our Julian already computes the UTC time. We need to add the 12-noon (0.5)
-	double Jnoon = floor(dateTime.m_julian) - 2451544.5 + 0.0008;
+	// double Jnoon = floor(dateTime.julian()) - 2451544.5 + 0.0008;
+	double Jnoon = dateTime.j2000Noon() + 0.0008;
 
 	// TT was set to 32.184 seconds laggin TAI on January 1958. By 1972, when leap seconds were introduced, 10 sec were added.
 	// By Jan 1, 2017, 27 more seconds were added comin to the total of 68.184 sec.
 	// This is computed as 68.184 / 86400 or 0.0008 with DUT1 (UT1 - UTC)
 
 	// Mean solar noon
-	double Jmean = Jnoon - (ALocation::m_longitude / 360.);
+	double Jmean = Jnoon - (location.longitude() / 360.);
 
 	if (m_verboseLevel & DebugComputation)
 	{
@@ -163,13 +164,13 @@ void ASun::showSun(const ADateTime& procTime)
 	//
 	// At 10,000 feet, -115/60 or -1.92 + -0.83 or -2.75
 	// double elev = -1.15 * sqrt(ELEV) / 60.;
-	double elev = -1.15 * sqrt(ALocation::m_elevation) / 60.;
+	double elev = -1.15 * sqrt(location.elevation()) / 60.;
 
 	// double twilightAdjust = -12.;
 	// double radHorizon = radianConvert(-0.83 - elev + twilightAdjust);
 	double radHorizon = radianConvert(-0.83 + elev);  // At actual twilight
 
-	double phi = radianConvert(ALocation::m_latitude);
+	double phi = radianConvert(location.latitude());
 
 	double radw0 = acos((sin(radHorizon) - sin(phi) * sin(radDelta)) / (cos(phi) * cos(radDelta)));
 	double w0 = degreeConvert(radw0);
@@ -182,7 +183,9 @@ void ASun::showSun(const ADateTime& procTime)
 	// Calculate sunrise and sunset:
 	double Jrise = Jtransit - w0 / 360.;
 	double Jset = Jtransit + w0 / 360.;
-	double tzTime = dateTime.m_timeZone / 24.;
+
+	double tzTime = dateTime.timeZoneAsFractionOfDay();
+
 	double tmpJdTime;
 
 	char *tzStr = getenv("TZ");

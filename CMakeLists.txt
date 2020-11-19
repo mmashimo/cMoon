@@ -1,10 +1,10 @@
 
 cmake_minimum_required (VERSION 3.0)
-project (cMoon VERSION 0.3)
+project (cMoon VERSION 0.4)
 
 # The version number.
-# set (cMoon_VERSION_MAJOR 1)
-# set (cMoon_VERSION_MINOR 0)
+# set (cMoon_VERSION_MAJOR 0)
+# set (cMoon_VERSION_MINOR 4)
 
 configure_file(cMoonConfig.h.in cMoonConfig.h)
 

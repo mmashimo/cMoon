@@ -27,7 +27,8 @@
 #include "AlgBase.h"
 #include "ADateTime.h"
 
-static double sinho[6];
+// static
+std::array<double, NumberOfAltTypes> AObject::m_sinho;
 
 
 AObject::AObject(const char* name, const AltitudeType altType, bool brightObject)
@@ -74,15 +75,15 @@ void AObject::setAltitudeType(const AltitudeType type)
 	static bool bFirst = true;
 	if (bFirst)
 	{
-		sinho[0] = 0;
-		sinho[1] = AlgBase::sinDegrees(8. / 60.);   // moonrise - average diameter used
-		sinho[2] = AlgBase::sinDegrees(-50. / 60.); // sunrise - classic value for refraction
-		sinho[3] = AlgBase::sinDegrees(-6.);        // snrise/set - civil (6degrees) twilight
-		sinho[4] = AlgBase::sinDegrees(-12.);       // nautical twilight
-		sinho[5] = AlgBase::sinDegrees(-18.);       // astronomical twilight
+		m_sinho[0] = 0;
+		m_sinho[1] = AlgBase::sinDegrees(8. / 60.);   // moonrise - average diameter used
+		m_sinho[2] = AlgBase::sinDegrees(-50. / 60.); // sunrise - classic value for refraction
+		m_sinho[3] = AlgBase::sinDegrees(-6.);        // snrise/set - civil (6degrees) twilight
+		m_sinho[4] = AlgBase::sinDegrees(-12.);       // nautical twilight
+		m_sinho[5] = AlgBase::sinDegrees(-18.);       // astronomical twilight
 		bFirst = false;
 	}
-	m_sinHorizontal = sinho[static_cast<int>(type)];
+	m_sinHorizontal = m_sinho[static_cast<int>(type)];
 }
 
 // returns number containing the time written in hours and minutes
@@ -97,7 +98,11 @@ static int hm(double jdHour, char* str)
 #endif
 	double jd = jdHour / 24.;
 	int h, m, s;
-	ADateTime::getJulianTime(jd, h, m, s);
+
+	
+	// ADateTime::getTimeFromJulian(jd, h, m, s);
+	AlgBase::convertJulianToTime(jd, h, m, s);
+
 	sprintf(str, "%02d:%02d:%02d", h, m, s);
 
 	return (100 * h) + m;

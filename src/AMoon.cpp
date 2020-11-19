@@ -44,6 +44,15 @@ constexpr double MilleniumJD{ 2451544.5 };
 // Conversion of sunrise/sunset from:
 // https://en.wikipedia.org/wiki/Sunrise_equation
 
+// Next Moon phase computation - Number of Moons in a Year
+constexpr double MoonsPerYear = 12.3685;
+constexpr double MoonCycleDivisor = 1236.85;
+
+std::array<const char*, 4> s_phaseName{"New Moon", "Waxing Quarter", "Full Moon", "Waning Quarter"};
+
+
+
+
 int AMoon::m_verboseLevel = 1;
 
 AMoon::AMoon()
@@ -93,7 +102,7 @@ int AMoon::processPhase(const ADateTime& dateTime, PhaseInfo& phase)
 	int nextPhase = 0;	// start with "new"
 	// Example of Julian Days is: 2017-3-1 should be 2457813.5
 	// https://www.subsystems.us/uploads/9/8/9/4/98948044/moonphase.pdf
-	double jd = dateTime.m_julian;
+	double jd = dateTime.julian();
 	phase.julian = jd;
 	phase.daysSince = static_cast<int>(jd - 2451549.5);
 	phase.newMoons = phase.daysSince / MoonDays;
@@ -226,93 +235,99 @@ int AMoon::printPhase(const PhaseInfo& phase) const
 	return nextPhase;
 }
 
-constexpr double MoonsPerYear = 12.3685;
+/// @brief Compute JDE (not J2000) for given cycle starting at dateTime (year/day=of-year)
+/// @param[in] K - number of Moons (plus phase) since J2000
+/// @returns JDE for a given K moon cycle
+static double computeJdeFromK(const double& K)
+{
+	double T = K / MoonCycleDivisor;
+	double JDE = 2451550.09765 + (29.530588853 * K) + (0.0001337 * pow(T, 2.)) - (0.00000015 * pow(T, 3.)) + (0.00000000073 * pow(T, 4.));
+	// TODO: Add debug message for travelling through cycles
+	return JDE;
+}
 
-std::array<const char*, 4> s_phaseName{"New Moon", "Waxing Quarter", "Full Moon", "Waning Quarter"};
-
-static double lastJDEForPhase(int phase, const ADateTime& dateTime, double& Y, double& K, double& T)
+/// @brief Computes Moon Cycle for the phase - given year and day-of-year (from dateTime).
+/// @param[in] phase - [0=new, 1=waxing quarter, 2=full, 3=waning quarter]
+/// @param[in] dateTime - date and time with JDE already computed
+/// @param[out] Y - year of conversion
+/// @param[out] K - number of moon of phases since J2000
+/// @return Moon Cycle since J2000 (K)
+double AMoon::computeKForNextPhase(const int phase, const ADateTime& dateTime)
 {
 	// Computes from the year and the year-day
-	Y = static_cast<double>(dateTime.year()) + (static_cast<double>(dateTime.m_timeStruct.tm_yday) / 365.25);
+	double Y = static_cast<double>(dateTime.year()) + (static_cast<double>(dateTime.dayOfYear()) / 365.25);
 
+	// K1 is number of moons since J2000.
 	double K1 = (Y - 2000.) * MoonsPerYear;
 
-	K = floor(K1) + (phase * 0.25);    // Phase is full (2)*0.25
+	double K = floor(K1) + (phase * 0.25);    // Phase is full (2)*0.25
 
-	T = K / 1236.85;
-
-	double JDE = 2451550.09765 + (29.530588853 * K) + (0.0001337 * pow(T, 2.)) - (0.00000015 * pow(T, 3.)) + (0.00000000073 * pow(T, 4.));
+	double JDE = computeJdeFromK(K);
 
 	if (AMoon::m_verboseLevel & DebugComputation)
 	{
 		std::cout << "--> Converting " << dateTime.year() << "-" << dateTime.month() << "-" << dateTime.day()
-			<< " and [" << dateTime.m_timeStruct.tm_yday << " days]=" << dateTime.m_julian << " as " << Y << " years" << std::endl;
+			<< " and [" << dateTime.dayOfYear() << " days]=" << dateTime.julian() << " as " << Y << " years" << std::endl;
 		std::cout << "--> Last JDE for " << s_phaseName[phase] << " = " << JDE << " Number of Moons (since 2000) = " << K1 << std::endl;
 	}
-
-	return JDE;
-}
-
-void AMoon::computeNextPhase(int phase, ADateTime& dateTime)
-{
-	double Y = 0;
-	double K = 0;
-	double T = 0;
-	double JDE = lastJDEForPhase(phase, dateTime, Y, K, T);
-
-	// Look for next phase
-	while (JDE < dateTime.m_julian)
+	
+	// Find next Julian Date/Time compared to the current one
+	while (JDE < dateTime.julian())
 	{
 		K += 1.;
-		T = K / 1236.85;
-		JDE = 2451550.09765 + (29.530588853 * K) + (0.0001337 * pow(T, 2.)) - (0.00000015 * pow(T, 3.)) + (0.00000000073 * pow(T, 4.));
+		JDE = computeJdeFromK(K);
 	}
 
-	if (m_verboseLevel & DebugComputation)
+	if (AMoon::m_verboseLevel & DebugComputation)
 	{
-		std::cout << "--> Date Conversion Y = " << Y << "; K phase = " << K << "; T phase = " << T << "; JDE = " << JDE << std::endl;
+		std::cout << "--> Date Conversion Y = " << Y << "; K phase = " << K << "; JDE = " << JDE << std::endl;
 	}
+
+	return K;
+}
+
+/// @brief Computes offset of the given phase for the cycle and the 100-year epoch.
+/// @param[in] phase - (0= new)
+/// @param[in] K - number of Moons plus shifted phase since J2000
+/// @param[in] T - Tau - the percent of cycle within 100 year epoch
+/// @param[in] year - current year - used to compute seconds offset per each year since 0AD
+/// @return adjusted (fine-tuned) JDE down to the second
+double AMoon::fineTuneJdeForCycle(const int phase, const double& K, const int year)
+{
+	double JDE = computeJdeFromK(K);
+
+	double T = K / MoonCycleDivisor;
 
 	double T2 = T * T;
 	double T3 = T2 * T;
 	double T4 = T3 * T;
 
-#if 0
-	double E = 1. - (0.002516 * T) - (0.0000074 * pow(T, 2.));
-	double M = 2.5534 + (29.10535669 * K) - (0.0000218 * pow(T, 2.)) - (0.00000011 * pow(T, 3.));
-	double MS = 201.5643 + (385.81693528 * K) + (0.0107438 * pow(T, 2.)) + (0.00001239 * pow(T, 3.)) - (0.000000058 * pow(T, 4.));
-	double F = 160.7108 + (390.67050274 * K) - (0.0016341 * pow(T, 2.)) - (0.00000227 * pow(T, 3.)) + (0.000000011 * pow(T, 4.));
-	double Omega = 124.7746 - (1.5637558 * K) + (0.0020691 * pow(T, 2.)) + (0.00000215 * pow(T, 3.));
-#endif
 	double E = 1. - (0.002516 * T) - (0.0000074 * T2);
 	double M = 2.5534 + (29.10535669 * K) - (0.0000218 * T2) - (0.00000011 * T3);
 	double MS = 201.5643 + (385.81693528 * K) + (0.0107438 * T2) + (0.00001239 * T3) - (0.000000058 * T4);
 	double F = 160.7108 + (390.67050274 * K) - (0.0016341 * T2) - (0.00000227 * T3) + (0.000000011 * T4);
 	double Omega = 124.7746 - (1.5637558 * K) + (0.0020691 * T2) + (0.00000215 * T3);
 
-	M = radianConvert(M);
-	MS = radianConvert(MS);
-	F = radianConvert(F);
-	Omega = radianConvert(Omega);
+	M = AlgBase::radianConvert(M);
+	MS = AlgBase::radianConvert(MS);
+	F = AlgBase::radianConvert(F);
+	Omega = AlgBase::radianConvert(Omega);
 
 	// Argumente der Planeten
-#if 0
-	double A1 = radianConvert(299.77 + (0.107408 * K) - (0.009173 * pow(T, 2.)));
-#endif
-	double A1 = radianConvert(299.77 + (0.107408 * K) - (0.009173 * T2));
-	double A2 = radianConvert(251.88 + (0.016321 * K));
-	double A3 = radianConvert(251.83 + (26.651886 * K));
-	double A4 = radianConvert(349.42 + (36.412478 * K));
-	double A5 = radianConvert(84.66 + (18.206239 * K));
-	double A6 = radianConvert(141.74 + (53.303771 * K));
-	double A7 = radianConvert(207.14 + (2.453732 * K));
-	double A8 = radianConvert(154.84 + (7.30686 * K));
-	double A9 = radianConvert(34.52 + (27.261239 * K));
-	double A10 = radianConvert(207.19 + (0.121824 * K));
-	double A11 = radianConvert(291.34 + (1.844379 * K));
-	double A12 = radianConvert(161.72 + (24.198154 * K));
-	double A13 = radianConvert(239.56 + (25.513099 * K));
-	double A14 = radianConvert(331.55 + (3.592518 * K));
+	double A1 = AlgBase::radianConvert(299.77 + (0.107408 * K) - (0.009173 * T2));
+	double A2 = AlgBase::radianConvert(251.88 + (0.016321 * K));
+	double A3 = AlgBase::radianConvert(251.83 + (26.651886 * K));
+	double A4 = AlgBase::radianConvert(349.42 + (36.412478 * K));
+	double A5 = AlgBase::radianConvert(84.66 + (18.206239 * K));
+	double A6 = AlgBase::radianConvert(141.74 + (53.303771 * K));
+	double A7 = AlgBase::radianConvert(207.14 + (2.453732 * K));
+	double A8 = AlgBase::radianConvert(154.84 + (7.30686 * K));
+	double A9 = AlgBase::radianConvert(34.52 + (27.261239 * K));
+	double A10 = AlgBase::radianConvert(207.19 + (0.121824 * K));
+	double A11 = AlgBase::radianConvert(291.34 + (1.844379 * K));
+	double A12 = AlgBase::radianConvert(161.72 + (24.198154 * K));
+	double A13 = AlgBase::radianConvert(239.56 + (25.513099 * K));
+	double A14 = AlgBase::radianConvert(331.55 + (3.592518 * K));
 
 	double PK = (0.000325 * sin(A1)) + (0.000165 * sin(A2)) + (0.000164 * sin(A3))
 		+ (0.000126 * sin(A4)) + (0.00011 * sin(A5)) + (0.000062 * sin(A6))
@@ -325,7 +340,7 @@ void AMoon::computeNextPhase(int phase, ADateTime& dateTime)
 	switch (phase)
 	{
 	default:
-	case 0: // Periodische Terme Neumond (New Moon)
+	case 0: // New Moon
 		PT = (-0.4072 * sin(MS))
 			+ (0.17241 * E * sin(M))
 			+ (0.01608 * sin(2 * MS))
@@ -354,7 +369,7 @@ void AMoon::computeNextPhase(int phase, ADateTime& dateTime)
 
 		break;
 
-	case 2: // Periodische Terme Vollmond (Full Moon)
+	case 2: // Full Moon
 		PT = (-0.40614 * sin(MS))
 			+ (0.17302 * E * sin(M))
 			+ (0.01614 * sin(2 * MS))
@@ -384,7 +399,7 @@ void AMoon::computeNextPhase(int phase, ADateTime& dateTime)
 		break;
 
 	case 1:
-	case 3: // Periodische Terme erstes und letztes Phase
+	case 3: // Quarter Phase
 		PT = (-0.62801 * sin(MS))
 			+ (0.17172 * E * sin(M))
 			- (0.01183 * E * sin(MS + M))
@@ -422,46 +437,65 @@ void AMoon::computeNextPhase(int phase, ADateTime& dateTime)
 		break;
 	}  // End switch
 
-	double delta = deltaT(static_cast<double>(dateTime.year())) / 86400;
+	// Compute number of seconds/year offset
+	double delta = AlgBase::deltaT(year) / 86400;
 
-	double total = (JDE + PK + PT + W - delta);
+	double total = JDE + PK + PT + W - delta;
 
-	if (m_verboseLevel & DebugComputation)
+	if (AMoon::m_verboseLevel & DebugComputation)
 	{
-		// return KALENDERDATUM(JDE + PK + PT + W + (m_timeZone / 24) - deltaT(Year(ThisDate)) / 86400);
-		// std::cout << "PK = " << PK << "; PT = " << PT << "; W = " << W << "; delta = " << delta << " <== " << tmpBuf << std::endl;
-		std::cout << "PK = " << PK << "; PT = " << PT << "; W = " << W << "; delta = " << delta << " <== " << total << std::endl;
+		std::cout << "PK = " << PK << "; PT = " << PT << "; W = " << W << "; delta = " << delta << std::endl;
+		std::cout << " Offset from JDE = " << JDE << " to " << total << std::endl;
 	}
 
-	dateTime.setJulianDateTime(total);
+	return total;
+}
+
+
+void AMoon::displayMoonPhaseForK(const int phase, const double K, ADateTime& dateTime)
+{
+	double total = fineTuneJdeForCycle(phase, K, static_cast<double>(dateTime.year()));
+
+	// Update Julian date-time with new Julian date
+	dateTime.setJulianDateTime(total, true);
 
 	std::cout << "Next " << s_phaseName[phase] << ": " << dateTime.asString("%F %T [UTC]") << std::endl;
 }
 
 
-
-
-int AMoon::nextMoonPhase(const ADateTime& dateTime, int phase)
+int AMoon::nextMoonPhase(const ADateTime& dateTime, const int startPhase, const bool lockPhase, const int numOfPhases, const int numOfCycles)
 {
-	AMoon nowPhase(*this);
 	ADateTime newDate = dateTime;
+	int phase = startPhase;
 
-	// default new moon = 0 - passed in
+	// Show first phase, at least
+	std::cout << "---------------------------------------" << std::endl;
+	double K = computeKForNextPhase(phase, newDate);
 
-	std::cout << "---------------------------------------" << std::endl;
-	nowPhase.computeNextPhase(phase, newDate);
-	std::cout << "---------------------------------------" << std::endl;
-	phase = (++phase) % 4;
-	nowPhase = *this;
-	nowPhase.computeNextPhase(phase, newDate);
-	std::cout << "---------------------------------------" << std::endl;
-	phase = (++phase) % 4;
-	nowPhase = *this;
-	nowPhase.computeNextPhase(phase, newDate);
-	std::cout << "---------------------------------------" << std::endl;
-	phase = (++phase) % 4;
-	nowPhase = *this;
-	nowPhase.computeNextPhase(phase, newDate);
+	// Add or subtract number of moon cycle from the date proposed
+	K += static_cast<double>(numOfCycles);
+
+	// Show the first phase computation
+	displayMoonPhaseForK(phase, K, newDate);
+
+	// Cycle through number of phases
+	for (int i = 1; i < numOfPhases; i++)
+	{
+		std::cout << "---------------------------------------" << std::endl;
+		if (lockPhase)
+		{
+			// Advance date/time one day to get next phase
+			K += 1.;
+			displayMoonPhaseForK(phase, K, newDate);
+		}
+		else
+		{
+			phase = (++phase) % 4;
+			K += 0.25;
+			displayMoonPhaseForK(phase, K, newDate);
+		}
+	}
+
 	std::cout << "---------------------------------------" << std::endl;
 
 	return phase;
@@ -555,7 +589,7 @@ void sun(double t, double &ra, double &dec)
 }
 
 
-static double sinalt(int iobj, double mjd0, double hour)
+static double sinalt(const ALocation& location, int iobj, double mjd0, double hour)
 {
 
 	// ' returns sine of the altitude of either the sun or the moon given the
@@ -578,7 +612,7 @@ static double sinalt(int iobj, double mjd0, double hour)
 	if (iobj == 0)
 	{
 		moon(t, ra, dec);
-		altitude = AlgBase::localAltitude(instant, ra, dec);
+		altitude = AlgBase::localAltitude(location, instant, ra, dec);
 		if (AMoon::m_verboseLevel & DebugComputation)
 		{
 			std::cout << "Moon (" << hour << "hr): RA = " << ra << " Decl = " << dec << " Alt = " << altitude << std::endl;
@@ -587,7 +621,7 @@ static double sinalt(int iobj, double mjd0, double hour)
 	else
 	{
 		sun(t, ra, dec);
-		altitude = AlgBase::localAltitude(instant, ra, dec);
+		altitude = AlgBase::localAltitude(location, instant, ra, dec);
 		if (AMoon::m_verboseLevel & DebugComputation)
 		{
 			std::cout << "Sun (" << hour << "hr): RA = " << ra << " Decl = " << dec << " Alt = " << altitude << std::endl;
@@ -607,7 +641,7 @@ static AObject objects[3]
 
 
 // Approximation Method
-void AMoon::moonRise(const ADateTime& procTime)
+void AMoon::moonRise(const ALocation& location, const ADateTime& procTime)
 {
 	ADateTime dateTime = procTime;
 	std::cout << std::endl << "-------------Moon-Sun-Rise/Set-------------------" << std::endl;
@@ -633,7 +667,7 @@ void AMoon::moonRise(const ADateTime& procTime)
 		double hour = 1.;
 		double sinho = obj.m_sinHorizontal;
 
-		double yPrior = sinalt(iobj, date, hour - 1) - sinho;
+		double yPrior = sinalt(location, iobj, date, hour - 1) - sinho;
 
 		double yCurr = 0.;
 		double yNext = 0.;
@@ -643,8 +677,8 @@ void AMoon::moonRise(const ADateTime& procTime)
 
 		// used later to classify non-risings
 		do {
-			yCurr = sinalt(iobj, date, hour) - sinho;
-			yNext = sinalt(iobj, date, hour + 1) - sinho;
+			yCurr = sinalt(location, iobj, date, hour) - sinho;
+			yNext = sinalt(location, iobj, date, hour + 1) - sinho;
 
 			// Approximate for zero and compute for next
 			obj.adjustForNext(yPrior, yCurr, yNext, hour);

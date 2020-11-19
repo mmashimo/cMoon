@@ -26,7 +26,6 @@
 #include <string.h>
 
 #include "AlgBase.h"
-#include "ALocation.h"
 
 double AlgBase::fpart(const double x)
 {
@@ -168,31 +167,50 @@ double AlgBase::fnatn2(const double y, const double x)
     return a;
 }
 
-// returns the local siderial time for
-// the mjd and longitude specified
-double AlgBase::localSiderialTime(double mjd, double glong)
+// returns the local siderial time for the mjd and longitude specified
+double AlgBase::localSiderialTime(const double mjd, const ALocation& location)
 {
 	double ut = fpart(mjd) * 24.;
 	double t = (floor(mjd) - 51544.5) / 36525.;
 	double gmst = 6.697374558 + 1.0027379093 * ut;
 	gmst = gmst + (8640184.812866 + (.093104 - .0000062 * t) * t) * t / 3600;
 
-	return 24 * fpart((gmst - (glong / 15)) / 24);
+	double glong = -location.longitude();  // routines use east longitude negative convention
+
+    double lst = 24 * fpart((gmst - (glong / 15)) / 24);
+
+    // TODO: Need to print out LST
+
+	return lst;
 }
 
 
-double AlgBase::localAltitude(double instant, double ra, double dec)
+double AlgBase::localAltitude(const ALocation& location, const double instant, double ra, double dec)
 {
-	double glong = -ALocation::m_longitude;  // routines use east longitude negative convention
-	double glat = ALocation::m_latitude;
+	double glat = location.latitude();
 
 	double sphi = sinDegrees(glat);
 	double cphi = cosDegrees(glat);
 
-	double tau = 15. * (localSiderialTime(instant, glong) - ra);   // 'hour angle of object
+	double tau = 15. * (localSiderialTime(instant, location) - ra);   // 'hour angle of object
+
+    // TODO: Need to print out Altitude
 
 	return sphi * sinDegrees(dec) + cphi * cosDegrees(dec) * cosDegrees(tau);
 }
 
 
+double AlgBase::convertJulianToTime(const double jd, int& hour, int& min, int& sec)
+{
+    double H = (jd - floor(jd)) * 24.;
+    hour = static_cast<int>(floor(H));
+
+    double M = (H - floor(H)) * 60.;
+    min = static_cast<int>(floor(M));
+
+    double fSeconds = (M - floor(M)) * 60.;
+    sec = static_cast<int>(fSeconds);
+
+    return fSeconds;
+}
 

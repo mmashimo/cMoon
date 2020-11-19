@@ -25,6 +25,7 @@
 
 #include "AlgBase.h"
 #include "ADateTime.h"
+#include "ALocation.h"
 
 typedef struct structPlanet
 {
@@ -37,6 +38,7 @@ typedef struct structPlanet
 	double eccentricity;  //   e - oblique eccentricity
 	double meanLongitude; // * l - mean longitude at date (J2000 meredian)
 } Planets;
+
 
 
 class APlanets : public AlgBase
@@ -52,7 +54,7 @@ public:
 
 	// APlanets& operator=(const APlanets& ref);
 
-	void computePlanets(const ADateTime& procTime, int type = -1);
+	void computePlanets(const ALocation& location, const ADateTime& procTime, int type = -1);
 
 	void computePlanetPos(const int type, const double j2000, double& ra, double& dec, double& dist);
 
@@ -60,7 +62,7 @@ public:
 
 private:
 	/// @brief Computes a planet's RA/DEC/Alt
-	void computeAPlanet(const double j2000, const double md, int type);
+	void computeAPlanet(const ALocation& location, const double j2000, const double md, int type);
 
 	/// @brief Heliocentric Rectangular Coordinates of Earth (x = 0 is at vernal equinox)
 	double m_xEarth;

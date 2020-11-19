@@ -26,16 +26,25 @@
 #pragma once
 
 #include <cmath>
+#include <array>
 
+
+/// @brief Use to compute sunrise/set (mostly), determines altitude at which sun position time is used.
+/// NOTE: NumberOfAltitudeTypes must match the number of altitude settings (below) since it is also used as an index
 enum class AltitudeType : int
 {
-	AtElevation,
+	AtElevation = 0,
 	MoonObject,
 	ActualSun,
 	CivilSun,
 	NauticalSun,
 	AstronomicalSun
 };
+
+
+/// @brief Number of different types of Altitude computation for sunrise/set (Must match number of AltitudeTypes above).
+constexpr int NumberOfAltTypes{6};
+
 
 // Base object for all objects
 class AObject
@@ -74,6 +83,8 @@ private:
 
 	void setAltitudeType(const AltitudeType type);
 
+	// NOTE: Use of non-const since it may need to be re-computed.
+	static std::array<double, NumberOfAltTypes> m_sinho;
 };
 
 

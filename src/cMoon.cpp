@@ -42,8 +42,6 @@
 
 using namespace std;
 
-static std::string s_iniFile = "../cMoon.ini";
-
 // Header - if 0 - generic. If < 0, suppress
 static int  s_HelpType = 0;
 static bool s_processDate = true;
@@ -55,6 +53,9 @@ static bool s_computeNextMoon = false;
 static bool s_computePlanets = false;
 
 static int s_nextPhase = -1;
+static int s_numberOfPhases = 4;
+static int s_nextMoonCycle = 0;
+static bool s_lockMoonPhase = false;
 
 static int  s_planetType = -1; // Show all planets
 
@@ -281,9 +282,11 @@ void printExtraHelp(const char* options)
 		std::cout << "                         [r] Show moon-rise/sun-rise [r] calculations" << std::endl;
 		std::cout << "                         [s] Show sunrise/set calculations" << std::endl;
 		std::cout << "                         [j] Show Julian date, local sidereal calculations" << std::endl;
-		std::cout << "  [-n#]                - Show next Moon phase: 0=new, 1=waxing, 2=full, 3=waning (default 0-new)" << std::endl;
-		std::cout << "  [-p#]                - Show planet calculations all or [#] 0=Mercury, 1=Venus, " << std::endl;
-		std::cout << "                         3=Mars, 4=Jupiter, 5=Saturn, 6=Uranus, 7=Neptune, 8=Pluto" << std::endl;
+		std::cout << "  [-n[NXFN]][+-=[#]]   - Show next Moon phase: N=new, X=waxing, F=full, W=waning (default -nN)" << std::endl;
+		std::cout << "                         [+[#]] - Next Moon cycle; [-[#]] - Previous Moon Cycle" << std::endl;
+		std::cout << "                         [=[#]] - Shows phase set, [#] number of times (ex. -nF=4 shows next 4 Full Moons)" << std::endl;
+		std::cout << "  [-p][#]              - Show planet calculations all or [#] M=Mercury, V=Venus, " << std::endl;
+		std::cout << "                         R=Mars, J=Jupiter, S=Saturn, U=Uranus, N=Neptune, P=Pluto" << std::endl;
 		std::cout << "  [-v[admps][ACFJ][#]] - Sets verbose mode (details in '--help -v')" << std::endl;
 		std::cout << "  [-q]                 - Suppresses header" << std::endl;
 		std::cout << "  [yyyy-mm-dd]         - Computes times using new date" << std::endl;
@@ -332,6 +335,10 @@ void printExtraHelp(const char* options)
 	else if (strncmp(options, "versions", 4) == 0)
 #endif
 	{
+		std::cout << " Version 0.4 - INI file, GPL" << std::endl;
+		std::cout << " - Command line improvements (-p, -n)" << std::endl;
+		std::cout << " Version 0.3 - INI file, GPL" << std::endl;
+		std::cout << " - Added INI file support" << std::endl;
 		std::cout << " Version 0.2 - Planet version" << std::endl;
 		std::cout << " - Added RA/DEC of Planets to 0.1-arc-minute accuracy" << std::endl;
 		std::cout << std::endl;
@@ -413,6 +420,11 @@ int main(int argc, char** argv)
 	ASun  sunObj;
 	APlanets planets;
 
+	// Get default INI configuration
+	Settings settings(true);
+
+	ALocation location(settings.getLocation());
+
 	bool bProcess = true;
 
 	if (argc > 1)
@@ -422,7 +434,6 @@ int main(int argc, char** argv)
 		bool bGoodDate = true;
 
 		std::string iniFile;
-		struct stat status;
 
 		for (int i = 1; i < argc; i++)
 		{
@@ -479,9 +490,9 @@ int main(int argc, char** argv)
 								if ((i + 3) <= argc)
 								{
 									// Set the latitude
-									ALocation::m_latitude = atof(argv[i + 1]);
-									ALocation::m_longitude = atof(argv[i + 2]);
-									std::cout << "Setting Lat-Long: " << ALocation::m_latitude << " - " << ALocation::m_longitude << std::endl;
+									location.setLatitude( atof(argv[i + 1]) );
+									location.setLongitude( atof(argv[i + 2]) );
+									std::cout << "Setting Lat-Long: " << location.latitude() << " - " << location.longitude() << std::endl;
 									i += 2;
 								}
 								else
@@ -516,8 +527,8 @@ int main(int argc, char** argv)
 								if ((i + 2) <= argc)
 								{
 									// Set the latitude
-									ALocation::m_elevation = atof(argv[i + 1]);
-									std::cout << "Setting Elevation (in feet): " << ALocation::m_elevation << std::endl;
+									location.setElevation(atof(argv[i + 1]));
+									std::cout << "Setting Elevation (in feet): " << location.elevation() << std::endl;
 									i += 1;
 								}
 								else
@@ -533,16 +544,7 @@ int main(int argc, char** argv)
 							{
 								iniFile = argv[i + 1];
 								// Get configuration from INI file other than "../cMoon.ini"
-								if (stat(iniFile.c_str(), &status) == 0)
-								{
-									s_iniFile = iniFile;
-									std::cout << "Using '" << s_iniFile << "' for configuration." << std::endl;
-								}
-								else
-								{
-									std::cout << "Cannot use INI file '" << iniFile << "' -- not found" << std::endl;
-									bProcess = false;
-								}
+								bProcess = settings.setDefaultIniFile(iniFile);
 							}
 	#ifdef WIN32
 							else if (_strnicmp(options, "save", 4) == 0)
@@ -554,9 +556,12 @@ int main(int argc, char** argv)
 								// Look for "--save=<ini_file> to save other than "cMoon.ini"
 								if (options[4] == '=')
 								{
-									s_iniFile = options + 5;
-									Settings newSave(s_iniFile);
+									iniFile = options + 5;
+									bProcess = settings.setDefaultIniFile(iniFile, true);
 								}
+								settings.save_location_info(location);
+								settings.save_date_time_info();
+								settings.save_debug_info();
 							}
 							else
 							{
@@ -586,43 +591,80 @@ int main(int argc, char** argv)
 								break;
 							case 'n':
 							case 'N':	// Next phase of number
-								if (options[1] == '\0')
 								{
-									// Get next arg
-									ar = argv[i + 1];
-									if ((ar != nullptr) && (ar[0] != '-'))
-									{
-										s_nextPhase = atoi(ar);
-										i++;
-									}
-									else
-									{
-										// Option 'n' ends without any arguments
-									}
-									
-								}
-								else
-								{
-									++options;
-									do
+									bool breakLoop = false;
+									int cycleIndex = 0;
+
+									// Option 'n' ends without any arguments. Do Moon Phase to compute current phase
+									// then compute NextPhase (TODO: only rather than all)
+									s_computeMoonPhase = true;
+
+									options++;
+
+									while(!breakLoop && (*options != '\0'))
 									{
 										if (isdigit(*options))
 										{
-											s_nextPhase = atoi(options);
+											int cycles = atoi(options);
+											switch(cycleIndex)
+											{
+												default:
+												case 0: // Number of phases
+													s_numberOfPhases = (cycles <= 0) ? 4 : cycles;
+													break;
+												case 1: // Add to next cycle
+													s_nextMoonCycle += cycles;
+													break;
+												case 2: // Subtract from this cycle
+													s_nextMoonCycle -= cycles;
+													break;
+												case 3: // Update next phase
+													s_nextMoonCycle = cycles;
+													break;
+											}
+											// Advance until no longer a digit
+											while(isdigit(*(options+1)))
+												options++;
 										}
-										else if (options[0] == '*')
+										else
 										{
-											// print all
+											switch(options[0])
+											{
+												case '*':  // Print all - can be added anywhere
+													cycleIndex = 0;
+													break;
+												case '+':  // forward moon cycles
+													cycleIndex = 1;
+													break;
+												case '-':  // backward moon cycles
+													cycleIndex = 2;
+													break;
+												case '#':  // Prints number of cycles = default 4 phases
+													cycleIndex = 3;
+													break;
+												case '=':  // Lock the current phase (i nothing behind, next phase)
+													s_lockMoonPhase = true;
+													break;
+												case 'f':
+												case 'F':  // show next _F_ull moon
+													s_nextPhase = 2;
+													break;
+												case 'n':
+												case 'N':  // show next _N_ew moon
+													s_nextPhase = 0;
+													break;
+												case 'w':  // show _W_aning quarter moon
+												case 'W':
+													s_nextPhase = 3;
+													break;
+												case 'x':
+												case 'X':  // show Wa_x_ing quarter moon
+													s_nextPhase = 1;
+													break;
+											}
 										}
-										else if (options[0] == '+')
-										{
-											// forward moons
-										}
-										else if (options[0] == '-')
-										{
-											// backward moons
-										}
-									} while (++options != nullptr);
+										++options;
+									}
 								}
 								s_computeNextMoon = true;
 								break;
@@ -639,7 +681,9 @@ int main(int argc, char** argv)
 							case 'P':
 								s_computePlanets = true;
 
-								if (options[1] == '\0')
+								options++;
+
+								if (*options == '\0')
 								{
 									// Get next arg
 									ar = argv[i + 1];
@@ -649,9 +693,62 @@ int main(int argc, char** argv)
 										i++;
 									}
 								}
+								else if (isdigit(*options))
+								{
+									// Use index to planets
+									s_planetType = atoi(options);
+								}
 								else
 								{
-									s_planetType = atoi(options+1);
+									switch(*options)
+									{
+										default:
+										case 'a':  // All planets 
+										case 'A':
+										case '*':
+											s_planetType = -1;
+											break;
+										case 'j':
+										case 'J':
+											s_planetType = 4;
+											break;
+										case 'm':  // Could be Mercury or Mars. If 'M' alone, Mercury
+										case 'M':
+											if ((options[1] == '\0') || (options[1] == 'e') || (options[1] == 'E'))
+											{
+												s_planetType = 0;   // "M", "Me", "ME"
+											}
+											else
+											{	// Any extension assume Mars
+												s_planetType = 3;   // "Ma" or "MA"
+											}
+											break;
+										case 'n':  // Neptune
+										case 'N':
+											s_planetType = 7;
+											break;
+										case 'p':  // Pluto
+										case 'P':
+											s_planetType = 8;
+											break;
+										case 'r':  // Mars if no "M"
+										case 'R':
+											s_planetType = 3;
+											break;
+										case 's':  // Saturrn
+										case 'S':
+											s_planetType = 5;
+											break;
+										case 'u':  // Uranus
+										case 'U':
+											s_planetType = 6;
+											break;
+										case 'v':  // Venus
+										case 'V':
+											s_planetType = 1;
+											break;
+
+									}
 								}
 								break;
 
@@ -678,38 +775,65 @@ int main(int argc, char** argv)
 					}
 					bGoodDate = false;
 				}
-				else
-				{
 	#ifdef WIN32
-					if (_stricmp(ar, "now") == 0)
+				else if (_stricmp(ar, "now") == 0)
 	#else
-					if (strcasecmp(options, "now") == 0)
+				else if (strcasecmp(options, "now") == 0)
 	#endif
+				{
+					bGoodDate = true;
+				}
+				else if (isdigit(ar[0]))
+				{
+					// Date or time entry
+					if (nullptr != strchr(ar, '-'))
 					{
-						bGoodDate = true;
+						ParsedDate tempDate;
+						bGoodDate = dateObj.parseDate(ar, tempDate);
+						if (!bGoodDate)
+						{
+							std::cout << "!!! Invalid date string: '" << ar << " <= found '-' but date not in YYYY-MM-DD format" << std::endl;
+						}
+					}
+					else if (nullptr != strchr(ar, ':'))
+					{
+						bGoodDate = dateObj.parseTime(ar);
+						if (!bGoodDate)
+						{
+							std::cout << "!!! Invalid time string: '" << ar << " <= found ':' but time not in HH:MM[:SS] format" << std::endl;
+						}
+					}
+					else if ((nullptr != strchr(ar, '.')) || (isdigit(*ar)))
+					{
+						// Compute using Julian date/time
+						bGoodDate = dateObj.parseJulianTime(ar);
+						if (!bGoodDate)
+						{
+							std::cout << "!!! Invalid Julian decimal format: '" << ar << " <= found '.' but date not in J.d format" << std::endl;
+						}
 					}
 					else
 					{
-						// Date or time entry
-						if (nullptr != strchr(ar, '-'))
+						// Parse time by number of seconds from midnight
+						bGoodDate = dateObj.parseTime(ar);
+						if (!bGoodDate)
 						{
-							bGoodDate = dateObj.parseDate(ar);
-						}
-						else if (nullptr != strchr(ar, ':'))
-						{
-							bGoodDate = dateObj.parseTime(ar);
-						}
-						else if ((nullptr != strchr(ar, '.')) || (isdigit(*ar)))
-						{
-							// Compute using Julian date/time
-							bGoodDate = dateObj.parseJulianTime(ar);
-						}
-						else
-						{
-							std::cout << "!!! Invalid date string: '" << ar << "'" << std::endl;
-							s_HelpType = 1;
+							std::cout << "!!! Invalid time string: '" << ar << " <= trying number of seconds from midnight" << std::endl;
 						}
 					}
+				}
+	#ifdef WIN32
+				else if (_stricmp(ar, "now") == 0)
+	#else
+				else if (strcasecmp(options, "now") == 0)
+	#endif
+				{
+					bGoodDate = true;
+				}
+				else
+				{
+					std::cout << "!!! Invalid argument string: '" << ar << "'" << std::endl;
+					s_HelpType = 1;
 				}
 			}
 			else
@@ -728,10 +852,9 @@ int main(int argc, char** argv)
 
 	print_header(s_HelpType);
 
-	Settings settings(s_iniFile);
 	std::cout << std::endl;
 
-	if (bProcess && dateObj.m_parsedCorrectly)
+	if (bProcess && dateObj.isParsedCorrectly())
 	{
 		if (!s_computeSun && !s_computeMoonPhase && !s_computeMoonRise && !s_computeNextMoon && !s_computePlanets)
 		{
@@ -755,22 +878,22 @@ int main(int argc, char** argv)
 
 		if (s_computeMoonRise)
 		{
-			moonObj.moonRise(dateObj);
+			moonObj.moonRise(location, dateObj);
 		}
 
 		if (s_computeNextMoon)
 		{
-			moonObj.nextMoonPhase(dateObj, s_nextPhase);
+			moonObj.nextMoonPhase(dateObj, s_nextPhase, s_lockMoonPhase, s_numberOfPhases, s_nextMoonCycle);
 		}
 
 		if (s_computeSun)
 		{
-			sunObj.showSun(dateObj);
+			sunObj.showSun(location, dateObj);
 		}
 
 		if (s_computePlanets)
 		{
-			planets.computePlanets(dateObj, s_planetType);
+			planets.computePlanets(location, dateObj, s_planetType);
 		}
 	}
 

@@ -30,12 +30,27 @@
 using ParsedDate = std::array<int, 3>;
 using DateString = std::string;
 
-typedef struct _parsedTime {
+#ifdef USE_TYPEDEF
+
+typedef struct _parsedTime
+{
 	std::array<int, 3> m_Time;   // Hours[0], minutes[1], seconds[2]
 	bool               m_24hr;
 	bool               m_amPm;   // am=false, pm=true (regardless of 24hr time)
     bool               m_utc;    // true if UTC time is set (current)
 } ParsedTime;
+
+#else
+
+using ParsedTime = struct _parsedTime
+{
+	std::array<int, 3> m_Time;   // Hours[0], minutes[1], seconds[2]
+	bool               m_24hr;
+	bool               m_amPm;   // am=false, pm=true (regardless of 24hr time)
+    bool               m_utc;    // true if UTC time is set (current)
+};
+
+#endif
 
 /// @brief Constants used for debug levels (m_verboseLevel) - bit fields (except <0)
 constexpr int DebugFullDateTime{1};
@@ -62,9 +77,10 @@ public:
     /// NOTE: Does rudimentary date check, but nothing else
     ///
     /// @param[in] arg - string arument hopefull hte format YYYY-MM-DD
+    /// @param[out] parsedDate - Date in an array (YYYY-MM-DD)
     ///
     /// @return bool - true if parsing was good (list is populated)
-    bool parseDate(const DateString& arg);
+    bool parseDate(const DateString& arg, ParsedDate& parsedDate);
 
 	/// @brief Parses short time format: HH:MM:SS[a,p]
 	///
@@ -101,6 +117,10 @@ public:
     /// @param[in] level - 0=quiet(results only) non-zero(prints debug info)
     void setVerboseMode(const int level);
 
+    /// @brief Adds or subtracts days/hours to current time.
+    /// @param[in] days
+    void addDays(const int days);
+
     //--- Accessors ---
     int year() const;
 
@@ -110,13 +130,23 @@ public:
 
     int dayOfYear() const;
 
-    void setJulianDateTime(double jd);
+    double julian() const;
 
-    /// @brief Sets Year, Month, Day - returns remaining Time as double
-    static double getJulianDate(const double jd, int& year, int& mon, int& day);
+    double j2000Noon() const;
 
+    double timeZoneAsFractionOfDay() const;
+
+    bool isParsedCorrectly() const;
+
+    /// @brief Set this date-time object to Julian date/time.
+    /// @param[in] jd - Julian date to convert this object
+    /// @param[in] updateSelf - if true, contruct timeStruct/parsed
+    void setJulianDateTime(const double jd, const bool updateSelf = true);
+
+#if 0
     /// @brief Gets hour:min:sec.sss for a given Julian day - return double seconds
-    static double getJulianTime(const double jd, int& hour, int& min, int& sec);
+    static double getTimeFromJulian(const double jd, int& hour, int& min, int& sec);
+#endif
 
     /// @brief Returns Julian date/time for a given UTC hour adjusted for local time-zone.
     ///
@@ -136,44 +166,50 @@ public:
     /// @return J2000 Julian date as double
     double computeJ2000(const bool utcMidDay = true);
 
+    /// @brief - Check parsed date
+    /// @param[in] parsed - date array
+    /// @return - true if correct, false if something went wrong
+    bool isParsedDateOk(const ParsedDate& parsed) const;
+
+
+
 	/// @brief Verbose level of 0 - is quiet mode
 	static int    m_verboseLevel;
 
-    /// @brief Default time zone if time-zone is not computed directly
+    /// @brief Default time zone if time-zone is not computed directly.
+    /// NOTE: this should be in ALocation, but that's for later
     static double m_defaultTimeZone;
+
+    /// @brief Location uses DST - onset/offset month, week number, weekday.
+    /// NOTE: this should be in ALocation, but that's for later
+    static bool   m_useDST;
 
 	//--- Date Members ---
     /// @brief default use of time-zone computation
     static bool m_autoComputeTimeZone;
 
-	/// @brief Parsed correctly and needs to nodification
-	bool       m_parsedCorrectly;
-
-    /// @brief Julian Year Calndar - Full date format
-	double     m_julian;
-
-    /// @brief Computed, if not automatically, from longitude and struct tm
-    double     m_timeZone;
-
-	/// @brief an array containing the date-format used for most ephemis use.
-	ParsedDate m_parsedDate;
-
-	/// @brief Time component
-	ParsedTime m_parsedTime;
-
 	/// @brief Time struct for UTC time
 	struct tm m_timeStruct;
 
-	/// @brief Time struct used to keep track of local time, if needed
-	struct tm m_localTimeStruct;
 
-	/// @brief Time in integer format
-	time_t    m_rawTime;
+private:
+    /// @brief Copies internals for copy constructor and assignment operator
+    void copyHelper(const ADateTime& ref);
 
-    /// @brief - Check parsed date
-    /// @param[in] parsed - date array
-    /// @return - true if correct, false if something went wrong
-    bool isParsedDateOk(const ParsedDate& parsed) const;
+    /// @brief Computes DST and time zone from longitude (if automatic)
+    void setTimeZone();
+
+    /// @brief Sets Year, Month, Day - returns remaining Time as double.
+    /// @param[in] jd - Julian Date
+    /// @param[out] parsedDate - converted from Julian date
+    /// @return remaining time as double (fractional part of the day)
+    double getJulianDate(const double jd, ParsedDate& parsedDate);
+
+    /// @brief Converts from Jd to various Parsed objects
+    /// @param[out] parsedDate
+    /// @param[out] parsedTime
+    /// @returns Julian date (passed in)
+    double updateTimeStructFromJulianDateTime(const double jd, ParsedDate& parsedDate, ParsedTime& parsedTime);
 
     /// @brief Converts struct tm to Parsed arrays
     /// @param[in] timeStruct - time struct
@@ -182,14 +218,29 @@ public:
     void constructDateTimeArray(const struct tm& timeStruct, const bool utc, const bool hr24 = true);
 
     /// @brief Converts ParsedDate to struct tm
-    void convertDateFromArray(bool doTime = false);
+    void convertDateFromArray(const ParsedDate& parsedDate, const ParsedTime& parsedTime, const bool toUtc = false);
 
-private:
-    /// @brief Copies internals for copy constructor and assignment operator
-    void copyHelper(const ADateTime& ref);
 
-    /// @brief Computes DST and time zone from longitude (if automatic)
-    void setTimeZone();
+	/// @brief Time in integer format - number of seconds since 
+	time_t    m_rawTime;
+
+	/// @brief Time struct used to keep track of local time, if needed
+	struct tm m_localTimeStruct;
+
+    /// @brief Julian Year Calndar - Full date format
+	double     m_julian;
+
+	/// @brief an array containing the date-format used for most ephemis use.
+	ParsedDate m_parsedDate;
+
+	/// @brief Time component
+	ParsedTime m_parsedTime;
+
+	/// @brief Parsed correctly and needs to nodification
+	bool       m_parsedCorrectly;
+
+    /// @brief Computed, if not automatically, from longitude and struct tm
+    double     m_timeZone;
 
 };
 

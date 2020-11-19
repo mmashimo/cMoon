@@ -26,6 +26,8 @@
 
 #include <cmath>
 
+#include "ALocation.h"
+
 class AlgBase
 {
 public:
@@ -65,8 +67,24 @@ public:
 
 	// returns the local siderial time for
 	// the mjd and longitude specified
-	static double localSiderialTime(double mjd, double glong);
+	static double localSiderialTime(const double mjd, const ALocation& location);
 
-	static double localAltitude(double instant, double ra, double dec);
+	/// @brief Given locatio and current time, get RA and Decl
+	/// @param[in] location
+	/// @param[in] instant - current time
+	/// @param[out] ra
+	/// @param[out] dec
+	static double localAltitude(const ALocation& location, const double instant, double ra, double dec);
+
+
+	//=========================================
+	// Basic Time functions
+	/// @brief Converts Time portion of Julian to Hours, Minutes and Seconds
+	/// @param[in] jd - Julian date with time as decimal (0.5 is noon)
+	/// @param[out] hour
+	/// @param[out] min
+	/// @param[out] sec
+	/// @returns number of seconds and its fractionl portion
+	static double convertJulianToTime(const double jd, int& hour, int& min, int& sec);
 
 };

@@ -37,18 +37,39 @@ constexpr double ELEV = 400.;     // feet
 // double LONG = -71.05;
 // double ELEV = 0.;     // feet
 
-double ALocation::m_latitude = LAT;
-double ALocation::m_longitude = LONG;
-double ALocation::m_elevation = ELEV;
-
-
 ALocation::ALocation()
+	: m_latitude{LAT}
+	, m_longitude{LONG}
+	, m_elevation{ELEV}
 {
+	// Set default from constexpr
+}
 
+ALocation::ALocation(const ALocation& ref)
+{
+	copyHelper(ref);
 }
 
 ALocation::~ALocation()
 {
-
+	// Nothing to do
 }
 
+ALocation& ALocation::operator =(const ALocation& ref)
+{
+	copyHelper(ref);
+	return *this;
+}
+
+void ALocation::copyHelper(const ALocation& ref)
+{
+	m_latitude  = ref.m_latitude;
+	m_longitude = ref.m_longitude;
+	m_elevation = ref.m_elevation;
+}
+
+void ALocation::getCoordinates(double& latitude, double& longitude)
+{
+	latitude = m_latitude;
+	longitude = m_longitude;
+}

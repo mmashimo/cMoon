@@ -27,6 +27,8 @@
 
 #include "ADateTime.h"
 
+#include "AlgBase.h"
+
 using namespace std;
 
 // Static class var:
@@ -34,6 +36,7 @@ int ADateTime::m_verboseLevel = 1;
 
 // double ADateTime::m_timeZone = -4;   // EDT
 double ADateTime::m_defaultTimeZone = -5;   // EST
+bool ADateTime::m_useDST = true;
 
 bool ADateTime::m_autoComputeTimeZone = true;
 
@@ -41,10 +44,12 @@ constexpr std::array<int, 12> s_MonthDays{ 31, 28, 31, 30, 31, 30, 31, 31, 30, 3
 
 // To use strftime(), refer to:
 // http://www.cplusplus.com/reference/ctime/strftime/
+static const char* DateTimeFormat24h = "%a %F %T";  // Generic Date-Time format: 'Wkd YYYY-MM-YY HH:MM:SS' 24-hour
+static const char* DateTimeFormat12h = "%a %F %r";  // Generic Date-Time format: 'Wkd YYYY-MM-YY HH:MM:SS a/pm' 12-hour
 
 ADateTime::ADateTime()
 {
-    todaysDate(true);
+    todaysDate(false);
 }
 
 ADateTime::ADateTime(const ADateTime& ref)
@@ -77,31 +82,39 @@ void ADateTime::copyHelper(const ADateTime& ref)
 void ADateTime::printASCII()
 {
     // convert now to string form
-    char* dt = asctime(&m_timeStruct);
-    std::cout << std::fixed;
-    std::cout << "Date and time [UTC]: " << dt;
+    char tmpStr[256];
+
+    // Date-Time format: 'Wkd YYYY-MM-YY HH:MM:SS' 24-hour
+    strftime(tmpStr, 256, DateTimeFormat24h, &m_timeStruct);
+    std::cout << "Date and time [UTC]: " << tmpStr << std::endl;
     if (m_verboseLevel & DebugJulianDate)
     {
+        std::cout << std::fixed;
         std::cout << "Julian = " << m_julian << " [" << year() << "-" << month() << "-" << day() << "]" << std::endl;
     }
 }
 
 int ADateTime::year() const
 {
-    // return m_parsedDate[0];
     return m_timeStruct.tm_year + 1900;
 }
 
 int ADateTime::month() const
 {
-    // return m_parsedDate[1];
     return m_timeStruct.tm_mon + 1;
 }
 
 int ADateTime::day() const
 {
-    // return m_parsedDate[2];
     return m_timeStruct.tm_mday;
+}
+
+void ADateTime::addDays(const int days)
+{
+    time_t baseTime = mktime(&m_timeStruct);
+    baseTime += (days * 86400);
+    m_timeStruct = *gmtime(&baseTime);
+    constructDateTimeArray(m_timeStruct, true);
 }
 
 void ADateTime::setVerboseMode(const int level)
@@ -115,6 +128,8 @@ void ADateTime::todaysDate(const bool bUTC)
     m_rawTime = time(nullptr);
 
     m_timeStruct = *gmtime(&m_rawTime);
+
+    setTimeZone();
     m_localTimeStruct = *localtime(&m_rawTime);
 
     if (bUTC)
@@ -126,8 +141,6 @@ void ADateTime::todaysDate(const bool bUTC)
     {
         constructDateTimeArray(m_localTimeStruct, false);
     }
-
-    setTimeZone();
 
     m_julian = getJulianYear();
 
@@ -148,7 +161,7 @@ void ADateTime::setTimeZone()
 
 }
 
-bool ADateTime::parseDate(const DateString& arg)
+bool ADateTime::parseDate(const DateString& arg, ParsedDate& parsedDate)
 {
     bool isOK{ false };
 
@@ -193,7 +206,7 @@ bool ADateTime::parseDate(const DateString& arg)
         isOK = (dateIdx == 2) && isParsedDateOk(m_parsedDate);
         if (isOK)
         {
-            convertDateFromArray();
+            convertDateFromArray(m_parsedDate, m_parsedTime);
             m_julian = getJulianYear();
         }
     }
@@ -280,7 +293,10 @@ bool ADateTime::parseTime(const std::string& arg)
 bool ADateTime::parseJulianTime(const std::string& arg)
 {
     double jd = atof(arg.c_str());
-    setJulianDateTime(jd);
+
+    // Set Julian date-time and update this struct
+    setJulianDateTime(jd, true);
+
     return jd != 0;
 }
 
@@ -353,44 +369,97 @@ double ADateTime::getJulianYear() const
 
 int ADateTime::dayOfYear() const
 {
-    struct tm newDate { m_timeStruct };
-    mktime(&newDate);
-    return newDate.tm_yday;
+#ifdef RECOMPILE_TM
+    mktime(&m_timeStruct);
+#endif
+    return m_timeStruct.tm_yday;
+}
+
+double ADateTime::julian() const
+{
+    return m_julian;
+}
+
+double ADateTime::j2000Noon() const
+{
+    return floor(m_julian) - 2451544.5;
+}
+
+double ADateTime::timeZoneAsFractionOfDay() const
+{
+    return m_timeZone / 24.;
+}
+
+bool ADateTime::isParsedCorrectly() const
+{
+    return m_parsedCorrectly;
 }
 
 void ADateTime::constructDateTimeArray(const struct tm& timeStruct, const bool utc, const bool hr24)
 {
-    m_parsedDate[0] = m_timeStruct.tm_year + 1900;
-    m_parsedDate[1] = m_timeStruct.tm_mon + 1;
-    m_parsedDate[2] = m_timeStruct.tm_mday;
+    m_parsedDate[0] = timeStruct.tm_year + 1900;
+    m_parsedDate[1] = timeStruct.tm_mon + 1;
+    m_parsedDate[2] = timeStruct.tm_mday;
 
-    m_parsedTime.m_Time[1] = m_timeStruct.tm_min;
-    m_parsedTime.m_Time[2] = m_timeStruct.tm_sec;
+    m_parsedTime.m_Time[1] = timeStruct.tm_min;
+    m_parsedTime.m_Time[2] = timeStruct.tm_sec;
 
     m_parsedTime.m_utc = utc;
-    m_parsedTime.m_amPm = (m_timeStruct.tm_hour < 12);
+    m_parsedTime.m_amPm = (timeStruct.tm_hour < 12);
     m_parsedTime.m_24hr = hr24;
+
     if (hr24)
     {
-        m_parsedTime.m_Time[0] = m_timeStruct.tm_hour;
+        m_parsedTime.m_Time[0] = timeStruct.tm_hour;
     }
     else
     {
-        m_parsedTime.m_Time[0] = (m_timeStruct.tm_hour <= 12)
-            ? m_timeStruct.tm_hour : (m_timeStruct.tm_hour - 12);
+        m_parsedTime.m_Time[0] = (timeStruct.tm_hour <= 12)
+            ? timeStruct.tm_hour : (timeStruct.tm_hour - 12);
         if (m_parsedTime.m_Time[0] == 0)
             m_parsedTime.m_Time[0] = 12; // 12am
     }
 
 }
 
-void ADateTime::convertDateFromArray(bool doTime)
-{
-    m_timeStruct.tm_year = m_parsedDate[0] - 1900;
-    m_timeStruct.tm_mon = m_parsedDate[1] - 1;
-    m_timeStruct.tm_mday = m_parsedDate[2];
 
-    if (doTime)
+void ADateTime::convertDateFromArray(const ParsedDate& parsedDate, const ParsedTime& parsedTime, const bool toUtc)
+{
+    m_timeStruct.tm_year = parsedDate[0] - 1900;
+    m_timeStruct.tm_mon = parsedDate[1] - 1;
+    m_timeStruct.tm_mday = parsedDate[2];
+
+    if (toUtc)
+    {
+        // Converting local time to UTC
+        mktime(&m_timeStruct);
+
+        if (parsedTime.m_24hr)
+        {
+            m_timeStruct.tm_hour = parsedTime.m_Time[0];
+        }
+        else if (parsedTime.m_amPm)
+        {
+            m_timeStruct.tm_hour = (parsedTime.m_Time[0] == 0) ? 12 : parsedTime.m_Time[0];
+        }
+        else
+        {
+            m_timeStruct.tm_hour = (parsedTime.m_Time[0] == 12) ? 12 : parsedTime.m_Time[0] + 12;
+        }
+
+        m_timeStruct.tm_min = parsedTime.m_Time[1];
+        m_timeStruct.tm_sec = parsedTime.m_Time[2];
+
+        m_timeStruct.tm_isdst = 0;
+    }
+    else
+    {
+        // Convert to local time
+        mktime(&m_timeStruct);
+    }
+
+#if 0
+    if (toUtc)
     {
         // Converting UTC
         mktime(&m_timeStruct);
@@ -417,8 +486,10 @@ void ADateTime::convertDateFromArray(bool doTime)
     {
         mktime(&m_timeStruct);
     }
-    
+#endif
+
 }
+
 
 void ADateTime::convertJulianToTime(const double jd, struct tm& timeOnly)
 {
@@ -463,7 +534,7 @@ void ADateTime::setFromJulian(const double& jd)
     // Get time while at it
     convertJulianToTime(jd, m_timeStruct);
 
-    convertDateFromArray();
+    convertDateFromArray(m_parsedDate, m_parsedTime);
 }
 
 std::string ADateTime::asString(const struct tm& tmStruct, const std::string& format) const
@@ -480,10 +551,26 @@ std::string ADateTime::asString(const std::string& format) const
     return std::string(tmp);
 }
 
-void ADateTime::setJulianDateTime(double jd)
+
+void ADateTime::setJulianDateTime(const double jd, const bool updateSelf)
 {
-    double D = getJulianDate(jd, m_parsedDate[0], m_parsedDate[1], m_parsedDate[2]);
-    double S = getJulianTime(D, m_parsedTime.m_Time[0], m_parsedTime.m_Time[1], m_parsedTime.m_Time[2]);
+    // Update other components of date-time if set
+    if (updateSelf)
+    {
+        m_julian = updateTimeStructFromJulianDateTime(jd, m_parsedDate, m_parsedTime);
+    }
+    else
+    {
+        m_julian = jd;
+    }
+}
+
+double ADateTime::updateTimeStructFromJulianDateTime(const double jd, ParsedDate& parsedDate, ParsedTime& parsedTime)
+{
+    double D = getJulianDate(jd, parsedDate);
+
+    // double S = getTimeFromJulian(D, parsedTime.m_Time[0], parsedTime.m_Time[1], parsedTime.m_Time[2]);
+    double S = AlgBase::convertJulianToTime(D, parsedTime.m_Time[0], parsedTime.m_Time[1], parsedTime.m_Time[2]);
 
     //    KALENDERDATUM = DateSerial(Y, M, Int(D)) + TimeSerial(H, Mi, S)
     if (m_verboseLevel & DebugJulianDate)
@@ -492,13 +579,16 @@ void ADateTime::setJulianDateTime(double jd)
     }
 
     // Copy from parsed time to tm_struct - make sure the timesettings are correct
-    m_parsedTime.m_24hr = true;
-    m_parsedTime.m_utc = true;
-	convertDateFromArray(true);
-    m_julian = jd;
+    parsedTime.m_24hr = true;
+    parsedTime.m_utc = true;
+
+	convertDateFromArray(parsedDate, parsedTime, true);
+
+    return jd;
 }
 
-double ADateTime::getJulianDate(const double jd, int& yr, int& mon, int& day)
+
+double ADateTime::getJulianDate(const double jd, ParsedDate& parsedDate)
 {
     // Dim Z, F, Alpha, A, B, C, D, E, M, Y, H, Mi, S
     double JD = jd + 0.5;
@@ -523,42 +613,15 @@ double ADateTime::getJulianDate(const double jd, int& yr, int& mon, int& day)
     double E = floor((B - D) / 30.6001);
     D = B - D - floor(30.6001 * E) + F;
 
-    if (E < 14)
-    {
-        mon = static_cast<int>(E - 1);
-    }
-    else
-    {
-        mon = static_cast<int>(E - 13);
-    }
+    int mon = static_cast<int>((E < 14) ? (E - 1) : (E - 13));
 
-    if (mon > 2)
-    {
-        yr = static_cast<int>(C - 4716);
-    }
-    else
-    {
-        yr = static_cast<int>(C - 4715);
-    }
-
-    day = static_cast<int>(D);
+    parsedDate[0] = static_cast<int>( (mon > 2) ? (C - 4716) : (C - 4715));
+    parsedDate[1] = mon;
+    parsedDate[2] = static_cast<int>(D);
 
     return D;
 }
 
-double ADateTime::getJulianTime(const double jd, int& hour, int& min, int& sec)
-{
-    double H = (jd - floor(jd)) * 24.;
-    hour = static_cast<int>(floor(H));
-
-    double M = (H - floor(H)) * 60.;
-    min = static_cast<int>(floor(M));
-
-    double fSeconds = (M - floor(M)) * 60.;
-    sec = static_cast<int>(fSeconds);
-
-    return fSeconds;
-}
 
 //----------------------------------------------------------------------
 
@@ -606,7 +669,7 @@ double ADateTime::modifiedJuiianDate(const bool addTimeZone)
 
     if (addTimeZone)
     {
-        utTime = utTime - (m_timeZone / 24.);
+        utTime = utTime - (timeZoneAsFractionOfDay());
         if (m_verboseLevel & DebugJulianDate)
         {
             std::cout << "Modified JD (uses local zone) = " << utTime << " using TZ=" << m_timeZone << std::endl;
@@ -633,6 +696,7 @@ double ADateTime::computeJ2000(const bool utcMidDay)
     }
     // Get the days to J2000
     // NOTE: Only works between 1901 to 2099 - see Meeus chapter 7
+    // Use of 730531.5 is 1901
     // 367 * y - 7 * (y + (m + 9) \ 12) \ 4 + 275 * m \ 9 + d - 730531.5 + h / 24
     // int days = (367 * y) - ((7 * (y + (m + 9) / 12)) / 4) + (275 * m / 9) + d;
     // (367*y)-int(7*(y+int((m+9)/12))/4)+int(275*12/9)+d+1721013.5
@@ -647,32 +711,3 @@ double ADateTime::computeJ2000(const bool utcMidDay)
 
 }
 
-//----------------------------------------------------------------------
-// This is an example set
-#ifdef TEST_DATE_TIME
-struct tm {
-    int tm_sec;   // seconds of minutes from 0 to 61
-    int tm_min;   // minutes of hour from 0 to 59
-    int tm_hour;  // hours of day from 0 to 24
-    int tm_mday;  // day of month from 1 to 31
-    int tm_mon;   // month of year from 0 to 11
-    int tm_year;  // year since 1900
-    int tm_wday;  // days since sunday
-    int tm_yday;  // days since January 1st
-    int tm_isdst; // hours of daylight savings time
-}
-int main() {
-    // current date/time based on current system
-    time_t now = time(0);
-
-    // convert now to string form
-    char* dt = ctime(&now);
-
-    cout << "The local date and time is: " << dt << endl;
-
-    // convert now to tm struct for UTC
-    tm *gmtm = gmtime(&now);
-    dt = asctime(gmtm);
-    cout << "The UTC date and time is:" << dt << endl;
-}
-#endif

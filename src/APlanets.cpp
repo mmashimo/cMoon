@@ -182,17 +182,25 @@ static void findPosition(const int index, const double d, double& xh, double& yh
 	}
 }
 
-static void printDegrees(char* str, const double x)
+static void printDegrees(char* str, const double deg)
 {
 	// cosmetic function returns angular values as a made up decimal
 	// number  - ddd.mm - the digits after the decimal point are minutes.
+	double x = (deg < 0.) ? -deg : deg;
 	double a = floor(x);
 	double b = 60. * (x - a);
 	double e = floor(b);
 	double s = floor((b - e) * 60);
 
 	// deal with carry on minutes
-	sprintf(str, "%02d:%02d:%02d (%f)", (int)a, (int)e, (int)s, x);
+	if (deg < 0.)
+	{
+		sprintf(str, "-%02d:%02d:%02d (%f)", (int)a, (int)e, (int)s, deg);
+	}
+	else
+	{
+		sprintf(str, "%02d:%02d:%02d (%f)", (int)a, (int)e, (int)s, deg);
+	}
 }
 
 // RA, DEC are in degrees
@@ -241,7 +249,7 @@ static void showPositions(const int type, const double& ra, const double& dec, c
 
 }
 
-void APlanets::computeAPlanet(const double j2000, const double md, int type)
+void APlanets::computeAPlanet(const ALocation& location, const double j2000, const double md, int type)
 {
 	double ra;
 	double dec;
@@ -252,11 +260,11 @@ void APlanets::computeAPlanet(const double j2000, const double md, int type)
 	showPositions(type, ra, dec, rvec);
 
 	// Crude method to see if it is above the horizon
-	double alt = AlgBase::localAltitude(md, ra, dec);
+	double alt = AlgBase::localAltitude(location, md, ra, dec);
 	std::cout << "  Alt = " << alt << std::endl;
 }
 
-void APlanets::computePlanets(const ADateTime& procTime, int type)
+void APlanets::computePlanets(const ALocation& location, const ADateTime& procTime, int type)
 {
 	ADateTime dateTime(procTime);
 
@@ -298,7 +306,7 @@ void APlanets::computePlanets(const ADateTime& procTime, int type)
 		if (found)
 		{
 			std::cout << "....................................." << std::endl;
-			computeAPlanet(d, md, *itr);
+			computeAPlanet(location, d, md, *itr);
 			std::cout << "....................................." << std::endl;
 			return;
 		}
@@ -313,7 +321,7 @@ void APlanets::computePlanets(const ADateTime& procTime, int type)
 		auto itr = list.begin();
 		for (; itr != list.end(); itr++)
 		{
-			computeAPlanet(d, md, *itr);
+			computeAPlanet(location, d, md, *itr);
 #if 0
 			double ra;
 			double dec;
@@ -324,7 +332,7 @@ void APlanets::computePlanets(const ADateTime& procTime, int type)
 			showPositions(*itr, ra, dec, rvec);
 
 			// Crude method to see if it is above the horizon
-			double alt = AlgBase::localAltitude(md, ra, dec);
+			double alt = AlgBase::localAltitude(location, md, ra, dec);
 			std::cout << "  Alt = " << alt << std::endl;
 #endif
 			std::cout << "....................................." << std::endl;

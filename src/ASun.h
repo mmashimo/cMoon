@@ -34,6 +34,7 @@
 #include <cmath>
 
 #include "ADateTime.h"
+#include "ALocation.h"
 
 #include "AlgBase.h"
 
@@ -46,7 +47,10 @@ public:
     /// @param[in] level - 0=quiet(results only) non-zero(prints debug info)
     void setVerboseMode(const int level);
 
-	void showSun(const ADateTime& procTime);
+	/// @brief Show Sunrise/Sunset times.
+	/// @param[in] procTime - date
+	/// @param[in] location - LAT/LONG
+	void showSun(const ALocation& location, const ADateTime& procTime);
 
 	static int m_verboseLevel;
 

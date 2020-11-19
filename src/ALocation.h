@@ -30,10 +30,40 @@ class ALocation
 public:
 	/// Default constructor.
 	ALocation();
+
+	/// Destructor
 	~ALocation();
 
-	static double m_latitude;
-	static double m_longitude;
-	static double m_elevation;
+	/// @brief Copy contructor
+	/// @param[in] ref - object to copy
+	ALocation(const ALocation& ref);
+
+	/// @brief Assignment operator
+	/// @param[in] ref - this object is assigned to ref
+	ALocation& operator =(const ALocation& ref);
+
+	/// @brief Get Coordinates (LAT/LONG) both or individually
+	/// @param[out] latitude
+	/// @param[out] longitude
+	void getCoordinates(double& latitude, double& longitude);
+
+	// In-line accessors
+	double latitude() const  { return m_latitude; }
+	double longitude() const { return m_longitude; }
+	double elevation() const { return m_elevation; }
+
+	void setLatitude(const double latitude) { m_latitude = latitude; }
+	void setLongitude(const double longitude) { m_longitude = longitude; }
+	void setElevation(const double elevation) { m_elevation = elevation; }
+
+private:
+	/// @brief Copies content for copy and assignmen
+	/// @param[in] ref - copies object to this
+	void copyHelper(const ALocation& ref);
+
+	// Public access (as structs)
+	double m_latitude;
+	double m_longitude;
+	double m_elevation;
 
 };
