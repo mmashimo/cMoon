@@ -11,13 +11,13 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "pch.h"
 #include <cstdio>
@@ -68,8 +68,23 @@ void ALocation::copyHelper(const ALocation& ref)
 	m_elevation = ref.m_elevation;
 }
 
-void ALocation::getCoordinates(double& latitude, double& longitude)
+void ALocation::getCoordinates(double& latitude, double& longitude) const
 {
 	latitude = m_latitude;
 	longitude = m_longitude;
+}
+
+void ALocation::displayCoordinates(const int format) const
+{
+	if (format == 0)
+	{
+		std::cout << "LAT:    " << m_latitude << std::endl;
+		std::cout << "LONG:   " << m_longitude << std::endl;
+		std::cout << "ELEV:   " << m_elevation << "ft" << std::endl;
+	}
+	else
+	{
+		std::cout << "Latitude: " << m_latitude << " Longitude: " << m_longitude << " Elevation: " << m_elevation << "ft" << std::endl;
+	}
+	
 }

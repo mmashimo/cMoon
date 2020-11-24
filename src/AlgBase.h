@@ -13,13 +13,13 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 ///
 
 #pragma once
@@ -77,8 +77,17 @@ public:
 	static double localAltitude(const ALocation& location, const double instant, double ra, double dec);
 
 
-	//=========================================
-	// Basic Time functions
+//=========================================
+// Basic Date / Time functions
+//=========================================
+
+	/// @brief Converts Julian day (double) into Date (Y,M,D)
+	/// @param[in] jd - Julian (not J2000)
+	/// @param[out] yr
+	/// @param[out] mon
+	/// @param[out] day
+	static void convertJulianToDate(const double jd, int& yr, int& mon, int& day);
+
 	/// @brief Converts Time portion of Julian to Hours, Minutes and Seconds
 	/// @param[in] jd - Julian date with time as decimal (0.5 is noon)
 	/// @param[out] hour
@@ -87,4 +96,18 @@ public:
 	/// @returns number of seconds and its fractionl portion
 	static double convertJulianToTime(const double jd, int& hour, int& min, int& sec);
 
+
+	/// @brief Converts Time (H,M,S) into decimal portion of a Julian day.
+	/// @param[in] hour
+	/// @param[in] min
+	/// @param[in] sec
+	/// @returns decimal portion of a day
+	static double convertTimeToJulian(const int hour, const int min, const int sec);
+
+	/// @brief Converts Date (Y, M, D) into Julian NOON (0.5 added).
+	/// @param[in] Y
+	/// @param[in] M
+	/// @param[in] D
+	/// @return Julian day at Noon
+	static double convertDateToJulianNoon(const int Y, const int M, const int D);
 };

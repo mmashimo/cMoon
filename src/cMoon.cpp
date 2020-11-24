@@ -46,18 +46,13 @@ using namespace std;
 static int  s_HelpType = 0;
 static bool s_processDate = true;
 
+static bool s_doInteractive = false;
+
 static bool s_computeSun = false;
 static bool s_computeMoonPhase = false;
 static bool s_computeMoonRise = false;
 static bool s_computeNextMoon = false;
 static bool s_computePlanets = false;
-
-static int s_nextPhase = -1;
-static int s_numberOfPhases = 4;
-static int s_nextMoonCycle = 0;
-static bool s_lockMoonPhase = false;
-
-static int  s_planetType = -1; // Show all planets
 
 // bit 0 - ADateTime
 static constexpr unsigned dateTime{0x1};
@@ -280,7 +275,7 @@ void printExtraHelp(const char* options)
 		std::cout << "  [--help [details]]   - More detailed help ([details] yet-to-be build)" << std::endl;
 		std::cout << "  [-mrsj]              - [m] Show moon-phase calculations" << std::endl;
 		std::cout << "                         [r] Show moon-rise/sun-rise [r] calculations" << std::endl;
-		std::cout << "                         [s] Show sunrise/set calculations" << std::endl;
+		std::cout << "                         [s] Show sunrise/set calculations (without atmostpheric correction)" << std::endl;
 		std::cout << "                         [j] Show Julian date, local sidereal calculations" << std::endl;
 		std::cout << "  [-n[NXFN]][+-=[#]]   - Show next Moon phase: N=new, X=waxing, F=full, W=waning (default -nN)" << std::endl;
 		std::cout << "                         [+[#]] - Next Moon cycle; [-[#]] - Previous Moon Cycle" << std::endl;
@@ -585,87 +580,19 @@ int main(int argc, char** argv)
 								bProcess = false;
 								break;
 
+							case 'i':	// Setup interactive mode
+							case 'I':
+								s_doInteractive = true;
+								break;
+
 							case 'm':
 							case 'M':
 								s_computeMoonPhase = true;
 								break;
 							case 'n':
 							case 'N':	// Next phase of number
-								{
-									bool breakLoop = false;
-									int cycleIndex = 0;
-
-									// Option 'n' ends without any arguments. Do Moon Phase to compute current phase
-									// then compute NextPhase (TODO: only rather than all)
-									s_computeMoonPhase = true;
-
-									options++;
-
-									while(!breakLoop && (*options != '\0'))
-									{
-										if (isdigit(*options))
-										{
-											int cycles = atoi(options);
-											switch(cycleIndex)
-											{
-												default:
-												case 0: // Number of phases
-													s_numberOfPhases = (cycles <= 0) ? 4 : cycles;
-													break;
-												case 1: // Add to next cycle
-													s_nextMoonCycle += cycles;
-													break;
-												case 2: // Subtract from this cycle
-													s_nextMoonCycle -= cycles;
-													break;
-												case 3: // Update next phase
-													s_nextMoonCycle = cycles;
-													break;
-											}
-											// Advance until no longer a digit
-											while(isdigit(*(options+1)))
-												options++;
-										}
-										else
-										{
-											switch(options[0])
-											{
-												case '*':  // Print all - can be added anywhere
-													cycleIndex = 0;
-													break;
-												case '+':  // forward moon cycles
-													cycleIndex = 1;
-													break;
-												case '-':  // backward moon cycles
-													cycleIndex = 2;
-													break;
-												case '#':  // Prints number of cycles = default 4 phases
-													cycleIndex = 3;
-													break;
-												case '=':  // Lock the current phase (i nothing behind, next phase)
-													s_lockMoonPhase = true;
-													break;
-												case 'f':
-												case 'F':  // show next _F_ull moon
-													s_nextPhase = 2;
-													break;
-												case 'n':
-												case 'N':  // show next _N_ew moon
-													s_nextPhase = 0;
-													break;
-												case 'w':  // show _W_aning quarter moon
-												case 'W':
-													s_nextPhase = 3;
-													break;
-												case 'x':
-												case 'X':  // show Wa_x_ing quarter moon
-													s_nextPhase = 1;
-													break;
-											}
-										}
-										++options;
-									}
-								}
+								options++;
+								moonObj.parseNextPhase(options);
 								s_computeNextMoon = true;
 								break;
 								
@@ -680,76 +607,8 @@ int main(int argc, char** argv)
 							case 'p':
 							case 'P':
 								s_computePlanets = true;
-
 								options++;
-
-								if (*options == '\0')
-								{
-									// Get next arg
-									ar = argv[i + 1];
-									if ((ar != nullptr) && (ar[0] != '-'))
-									{
-										s_planetType = atoi(ar);
-										i++;
-									}
-								}
-								else if (isdigit(*options))
-								{
-									// Use index to planets
-									s_planetType = atoi(options);
-								}
-								else
-								{
-									switch(*options)
-									{
-										default:
-										case 'a':  // All planets 
-										case 'A':
-										case '*':
-											s_planetType = -1;
-											break;
-										case 'j':
-										case 'J':
-											s_planetType = 4;
-											break;
-										case 'm':  // Could be Mercury or Mars. If 'M' alone, Mercury
-										case 'M':
-											if ((options[1] == '\0') || (options[1] == 'e') || (options[1] == 'E'))
-											{
-												s_planetType = 0;   // "M", "Me", "ME"
-											}
-											else
-											{	// Any extension assume Mars
-												s_planetType = 3;   // "Ma" or "MA"
-											}
-											break;
-										case 'n':  // Neptune
-										case 'N':
-											s_planetType = 7;
-											break;
-										case 'p':  // Pluto
-										case 'P':
-											s_planetType = 8;
-											break;
-										case 'r':  // Mars if no "M"
-										case 'R':
-											s_planetType = 3;
-											break;
-										case 's':  // Saturrn
-										case 'S':
-											s_planetType = 5;
-											break;
-										case 'u':  // Uranus
-										case 'U':
-											s_planetType = 6;
-											break;
-										case 'v':  // Venus
-										case 'V':
-											s_planetType = 1;
-											break;
-
-									}
-								}
+								planets.parseArgs(options);
 								break;
 
 							case 'Q':
@@ -774,14 +633,6 @@ int main(int argc, char** argv)
 						bProcess = false;
 					}
 					bGoodDate = false;
-				}
-	#ifdef WIN32
-				else if (_stricmp(ar, "now") == 0)
-	#else
-				else if (strcasecmp(options, "now") == 0)
-	#endif
-				{
-					bGoodDate = true;
 				}
 				else if (isdigit(ar[0]))
 				{
@@ -856,44 +707,106 @@ int main(int argc, char** argv)
 
 	if (bProcess && dateObj.isParsedCorrectly())
 	{
-		if (!s_computeSun && !s_computeMoonPhase && !s_computeMoonRise && !s_computeNextMoon && !s_computePlanets)
-		{
-			s_computeSun = true;
-			s_computeMoonPhase = true;
-			s_computeMoonRise = true;
-			s_computeNextMoon = true;
-			s_computePlanets = true;
-		}
+		location.displayCoordinates();
 
-		dateObj.printASCII();
+		dateObj.showDateTime();
 
-		if (s_computeMoonPhase)
+		if (s_doInteractive)
 		{
-			int nextPhase = moonObj.moonPhase(dateObj);
-			if (s_nextPhase < 0)
+			std::cout << std::endl << "--- Interactive mode (type '?' or 'help <subject>' for help; 'q' to quit) ---" << std::endl << std::endl;
+
+			// Run through the program interactively
+			bool bDone = false;
+			std::string buffer;
+
+			while (!bDone)
 			{
-				s_nextPhase = nextPhase;
+				std::cout << "Prompt> ";
+				// This should block:
+				std::getline(std::cin, buffer);
+
+				switch(buffer[0])
+				{
+					case '?':
+					case 'h':
+						std::cout << "Help!" << std::endl;
+						break;
+					case 'm':  // Moon phase
+					case 'M':
+						moonObj.moonPhase(dateObj);
+						break;
+					case 'n':
+					case 'N': // Next moon phase
+#if 0
+						moonObj.nextMoonPhase(dateObj, s_nextPhase, s_lockMoonPhase, s_numberOfPhases, s_nextMoonCycle);
+#endif
+						moonObj.nextMoonPhase(dateObj);
+						break;
+					case 'p':	// Planets
+					case 'P':
+						planets.computePlanets(location, dateObj);
+						break;
+
+					case 'q':	// Quit/end
+					case 'Q':
+						bDone = true;
+						break;
+
+					case 'r':	// Moonrise
+					case 'R':
+						moonObj.moonRise(location, dateObj);
+						break;
+
+					case 's':
+					case 'S':
+						sunObj.showSun(location, dateObj);
+						break;
+
+					default:
+						std::cout << "Command: '" << buffer << "' -- do not understand" << std::endl;
+						break;
+				}
 			}
 		}
-
-		if (s_computeMoonRise)
+		else
 		{
-			moonObj.moonRise(location, dateObj);
-		}
+			// If nothing is set, then print all
+			if (!s_computeSun && !s_computeMoonPhase && !s_computeMoonRise && !s_computeNextMoon && !s_computePlanets)
+			{
+				s_computeSun = true;
+				s_computeMoonPhase = true;
+				s_computeMoonRise = true;
+				s_computeNextMoon = true;
+				s_computePlanets = true;
+			}
 
-		if (s_computeNextMoon)
-		{
-			moonObj.nextMoonPhase(dateObj, s_nextPhase, s_lockMoonPhase, s_numberOfPhases, s_nextMoonCycle);
-		}
+			if (s_computeMoonPhase)
+			{
+				int nextPhase = moonObj.moonPhase(dateObj);
+			}
 
-		if (s_computeSun)
-		{
-			sunObj.showSun(location, dateObj);
-		}
+			if (s_computeMoonRise)
+			{
+				moonObj.moonRise(location, dateObj);
+			}
 
-		if (s_computePlanets)
-		{
-			planets.computePlanets(location, dateObj, s_planetType);
+			if (s_computeNextMoon)
+			{
+#if 0
+				moonObj.nextMoonPhase(dateObj, s_nextPhase, s_lockMoonPhase, s_numberOfPhases, s_nextMoonCycle);
+#endif
+				moonObj.nextMoonPhase(dateObj);
+			}
+
+			if (s_computeSun)
+			{
+				sunObj.showSun(location, dateObj);
+			}
+
+			if (s_computePlanets)
+			{
+				planets.computePlanets(location, dateObj);
+			}
 		}
 	}
 

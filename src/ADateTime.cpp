@@ -11,13 +11,13 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "pch.h"
 #include <cstdio>
@@ -79,7 +79,7 @@ void ADateTime::copyHelper(const ADateTime& ref)
 	m_rawTime             = m_rawTime;
 }
 
-void ADateTime::printASCII()
+void ADateTime::printASCII() const
 {
     // convert now to string form
     char tmpStr[256];
@@ -92,6 +92,37 @@ void ADateTime::printASCII()
         std::cout << std::fixed;
         std::cout << "Julian = " << m_julian << " [" << year() << "-" << month() << "-" << day() << "]" << std::endl;
     }
+}
+
+void ADateTime::showTime(const int format) const
+{
+    char tmpStr[256];
+}
+
+void ADateTime::showDateTime(const int format) const
+{
+    char tmpStr[256];
+    strftime(tmpStr, 256, DateTimeFormat24h, &m_timeStruct);
+    std::cout << "UTC:    " << tmpStr << std::endl;
+    strftime(tmpStr, 256, DateTimeFormat12h, &m_localTimeStruct);
+    std::cout << "Local:  " << tmpStr << std::endl;
+
+    // Julian at Noon
+    double jd = julianDay(true);
+    sprintf(tmpStr, "%f", jd);
+    std::cout << "Julian: " << tmpStr << std::endl;
+
+    jd = julianDay(false);
+    sprintf(tmpStr, "%f", jd);
+    std::cout << "JTime:  " << tmpStr << std::endl;
+
+    jd = j2000Day(true);
+    sprintf(tmpStr, "%f", jd);
+    std::cout << "J2000D: " << tmpStr << std::endl;
+
+    jd = j2000Day(false);
+    sprintf(tmpStr, "%f", jd);
+    std::cout << "J2000:  " << tmpStr << std::endl;
 }
 
 int ADateTime::year() const
@@ -116,6 +147,17 @@ void ADateTime::addDays(const int days)
     m_timeStruct = *gmtime(&baseTime);
     constructDateTimeArray(m_timeStruct, true);
 }
+
+const struct tm& ADateTime::getTimeStruct(const bool local) const
+{
+    if (local)
+    {
+        return m_localTimeStruct;
+    }
+
+    return m_timeStruct;
+}
+
 
 void ADateTime::setVerboseMode(const int level)
 {
@@ -142,7 +184,7 @@ void ADateTime::todaysDate(const bool bUTC)
         constructDateTimeArray(m_localTimeStruct, false);
     }
 
-    m_julian = getJulianYear();
+    m_julian = julianDay(true);
 
 	m_parsedCorrectly = true;
 }
@@ -207,7 +249,7 @@ bool ADateTime::parseDate(const DateString& arg, ParsedDate& parsedDate)
         if (isOK)
         {
             convertDateFromArray(m_parsedDate, m_parsedTime);
-            m_julian = getJulianYear();
+            m_julian = julianDay(true);
         }
     }
     else
@@ -295,7 +337,7 @@ bool ADateTime::parseJulianTime(const std::string& arg)
     double jd = atof(arg.c_str());
 
     // Set Julian date-time and update this struct
-    setJulianDateTime(jd, true);
+    setJulianDateTime(jd);
 
     return jd != 0;
 }
@@ -349,23 +391,6 @@ bool ADateTime::isParsedDateOk(const ParsedDate& parsed) const
     return bOk;
 }
 
-double ADateTime::getJulianYear() const
-{
-    // Example of Julian Days is: 2017-3-1 should be 2457813.5
-    // https://www.subsystems.us/uploads/9/8/9/4/98948044/moonphase.pdf
-
-    // (367*y)-int(7*(y+int((m+9)/12))/4)+int(275*m/9)+d+1721013.5
-    // 2001-12-05 should be 2452248.5 (734367 - 3506 + 366 + 5 + 1721013.5)
-    int y = year();
-    int m = month();
-    int a = 367 * y;
-    int b1 = (m + 9) / 12;
-    int b = 7 * (y + b1) / 4;
-    int c = 275 * m / 9;
-    double jd = a - b + c + day() + 1721013.5;
-
-    return jd;
-}
 
 int ADateTime::dayOfYear() const
 {
@@ -378,11 +403,6 @@ int ADateTime::dayOfYear() const
 double ADateTime::julian() const
 {
     return m_julian;
-}
-
-double ADateTime::j2000Noon() const
-{
-    return floor(m_julian) - 2451544.5;
 }
 
 double ADateTime::timeZoneAsFractionOfDay() const
@@ -516,6 +536,9 @@ void ADateTime::setFromJulian(const double& jd)
     // https://aa.usno.navy.mil/faq/docs/JD_Formula.php
     m_julian = jd;
 
+    AlgBase::convertJulianToDate(jd, m_parsedDate[0], m_parsedDate[1], m_parsedDate[2]);
+
+#if 0
     // Convert JD in AD
     int l = (int)(jd + 68569);
     int n = (4 * l) / 146097;
@@ -530,6 +553,7 @@ void ADateTime::setFromJulian(const double& jd)
     m_parsedDate[0] = i;
     m_parsedDate[1] = j;
     m_parsedDate[2] = k;
+#endif
 
     // Get time while at it
     convertJulianToTime(jd, m_timeStruct);
@@ -552,17 +576,10 @@ std::string ADateTime::asString(const std::string& format) const
 }
 
 
-void ADateTime::setJulianDateTime(const double jd, const bool updateSelf)
+void ADateTime::setJulianDateTime(const double jd)
 {
     // Update other components of date-time if set
-    if (updateSelf)
-    {
-        m_julian = updateTimeStructFromJulianDateTime(jd, m_parsedDate, m_parsedTime);
-    }
-    else
-    {
-        m_julian = jd;
-    }
+    m_julian = updateTimeStructFromJulianDateTime(jd, m_parsedDate, m_parsedTime);
 }
 
 double ADateTime::updateTimeStructFromJulianDateTime(const double jd, ParsedDate& parsedDate, ParsedTime& parsedTime)
@@ -631,7 +648,7 @@ double ADateTime::getJulianDate(const double jd, ParsedDate& parsedDate)
 //   valid for any date since 4713 BC
 //   assumes gregorian calendar after 1582 Oct 15, Julian before
 //   Years BC assumed in calendar format, i.e. the year before 1 AD is 1 BC
-double ADateTime::modifiedJuiianDate(const bool addTimeZone)
+double ADateTime::modifiedJuiianDate(const bool addTimeZone) const
 {
     int y = year();
     int m = month();
@@ -679,21 +696,25 @@ double ADateTime::modifiedJuiianDate(const bool addTimeZone)
     return utTime;
 }
 
-double ADateTime::computeJ2000(const bool utcMidDay)
+double ADateTime::julianDay(const bool noon) const
+{
+    double jd = AlgBase::convertDateToJulianNoon(year(), month(), day());
+
+    if (noon)
+    {
+        return jd;
+    }
+    // Return Julian date at time - NOTE: Julian noon already is at noon, so subtract
+    return jd + AlgBase::convertTimeToJulian(m_timeStruct.tm_hour, m_timeStruct.tm_min, m_timeStruct.tm_sec) - 0.5;
+}
+
+double ADateTime::j2000Day(const bool utcMidDay) const
 {
     // Convert struct tm (as UTC) to J2000 date-time
     int y = year();
     int m = month();
     int d = day();
 
-    // Add hours in decimal
-    double h = 0.;
-    if (!utcMidDay)
-    {
-        h = (double)m_timeStruct.tm_hour;
-        h += (double)m_timeStruct.tm_min / 60.;
-        h += (double)m_timeStruct.tm_sec / 3600.;
-    }
     // Get the days to J2000
     // NOTE: Only works between 1901 to 2099 - see Meeus chapter 7
     // Use of 730531.5 is 1901
@@ -707,7 +728,23 @@ double ADateTime::computeJ2000(const bool utcMidDay)
     int days = yearDays - months + monDays + d;
 
     // Add the decimal hours to return
-    return (double)days - 730531.5 + (h / 24.);
+    double j2000 = (double)days - 730531.5;
 
+    // Add hours in decimal
+    double h = 0.;
+    if (!utcMidDay)
+    {
+        h = (double)m_timeStruct.tm_hour;
+        h += (double)m_timeStruct.tm_min / 60.;
+        h += (double)m_timeStruct.tm_sec / 3600.;
+        j2000 += ((h / 24.) - 0.5);
+    }
+
+    return j2000;
+}
+
+double ADateTime::j2000Noon() const
+{
+    return floor(m_julian) - 2451544.5;
 }
 

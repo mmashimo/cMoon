@@ -13,18 +13,18 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 ///
 
 #pragma once
 
-#include <string>
+#include <cstring>
 #include <cmath>
 
 #include "AlgBase.h"
@@ -68,6 +68,10 @@ public:
 
 	AMoon& operator=(const AMoon& ref);
 
+	void resestNextPhase();
+
+	void parseNextPhase(std::string arg);
+
 	/// @brief Compute the current Moon Phase.
 	/// @param[in] dateTime
 	/// @return "Next Phase" value
@@ -77,6 +81,8 @@ public:
 	/// @param[in] location
 	/// @param[in] procTime - of the day
 	void moonRise(const ALocation& location, const ADateTime& procTime);
+
+	int nextMoonPhase(const ADateTime& dateTime);
 
 	/// @brief Computes Next Moon Phase from give dateTime.
 	/// @param[in] dateTime - Set date and time
@@ -89,6 +95,12 @@ public:
     void setVerboseMode(const int level);
 
 	static int m_verboseLevel;
+
+	int  m_nextPhase;
+	int  m_numberOfPhases;
+	int  m_nextMoonCycle;
+	bool m_lockMoonPhase;
+
 
 private:
 
@@ -120,4 +132,5 @@ private:
 	void displayMoonPhaseForK(const int phase, const double K, ADateTime& dateTime);
 
 	PhaseInfo m_phase;
+
 };

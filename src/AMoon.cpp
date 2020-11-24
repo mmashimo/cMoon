@@ -11,13 +11,13 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "pch.h"
 
@@ -50,13 +50,11 @@ constexpr double MoonCycleDivisor = 1236.85;
 
 std::array<const char*, 4> s_phaseName{"New Moon", "Waxing Quarter", "Full Moon", "Waning Quarter"};
 
-
-
-
 int AMoon::m_verboseLevel = 1;
 
 AMoon::AMoon()
 {
+	resestNextPhase();
 }
 
 
@@ -67,7 +65,7 @@ AMoon::AMoon(const AMoon& ref)
 
 AMoon::~AMoon()
 {
-
+	// Intentionally left blank
 }
 
 AMoon& AMoon::operator=(const AMoon& ref)
@@ -76,10 +74,102 @@ AMoon& AMoon::operator=(const AMoon& ref)
 	return *this;
 }
 
+void AMoon::resestNextPhase()
+{
+	m_nextPhase      = -1;
+	m_numberOfPhases = 4;
+	m_nextMoonCycle  = 0;
+	m_lockMoonPhase  = false;
+}
+
 void AMoon::copyHelper(const AMoon& ref)
 {
-	m_phase = ref.m_phase;
+	m_phase          = ref.m_phase;
+
+	// Next Phase computation
+	m_nextPhase      = ref.m_nextPhase;
+	m_numberOfPhases = ref.m_numberOfPhases;
+	m_nextMoonCycle  = ref.m_nextMoonCycle;
+	m_lockMoonPhase  = ref.m_lockMoonPhase;
 }
+
+void AMoon::parseNextPhase(std::string arg)
+{
+	bool breakLoop = false;
+	int cycleIndex = 0;
+
+	// Need to resolve 32 characters, only
+	char args[32];
+	strncpy(args, arg.c_str(), 32);
+	char *options = args;
+
+	while(!breakLoop && (*options != '\0'))
+	{
+		if (isdigit(*options))
+		{
+			int cycles = atoi(options);
+			switch(cycleIndex)
+			{
+				default:
+				case 0: // Number of phases
+					m_numberOfPhases = (cycles <= 0) ? 4 : cycles;
+					break;
+				case 1: // Add to next cycle
+					m_nextMoonCycle += cycles;
+					break;
+				case 2: // Subtract from this cycle
+					m_nextMoonCycle -= cycles;
+					break;
+				case 3: // Update next phase
+					m_nextMoonCycle = cycles;
+					break;
+			}
+			// Advance until no longer a digit
+			while(isdigit(*(options+1)))
+				options++;
+		}
+		else
+		{
+			switch(*options)
+			{
+				case '*':  // Print all - can be added anywhere
+					cycleIndex = 0;
+					break;
+				case '+':  // forward moon cycles
+					cycleIndex = 1;
+					break;
+				case '-':  // backward moon cycles
+					cycleIndex = 2;
+					break;
+				case '#':  // Prints number of cycles = default 4 phases
+					cycleIndex = 3;
+					break;
+				case '=':  // Lock the current phase (i nothing behind, next phase)
+					m_lockMoonPhase = true;
+					cycleIndex = 0;
+					break;
+				case 'f':
+				case 'F':  // show next _F_ull moon
+					m_nextPhase = 2;
+					break;
+				case 'n':
+				case 'N':  // show next _N_ew moon
+					m_nextPhase = 0;
+					break;
+				case 'w':  // show _W_aning quarter moon
+				case 'W':
+					m_nextPhase = 3;
+					break;
+				case 'x':
+				case 'X':  // show Wa_x_ing quarter moon
+					m_nextPhase = 1;
+					break;
+			}
+		}
+		options++;
+	}
+}
+
 
 void AMoon::setVerboseMode(const int level)
 {
@@ -102,7 +192,7 @@ int AMoon::processPhase(const ADateTime& dateTime, PhaseInfo& phase)
 	int nextPhase = 0;	// start with "new"
 	// Example of Julian Days is: 2017-3-1 should be 2457813.5
 	// https://www.subsystems.us/uploads/9/8/9/4/98948044/moonphase.pdf
-	double jd = dateTime.julian();
+	double jd = dateTime.julianDay(true);
 	phase.julian = jd;
 	phase.daysSince = static_cast<int>(jd - 2451549.5);
 	phase.newMoons = phase.daysSince / MoonDays;
@@ -457,7 +547,7 @@ void AMoon::displayMoonPhaseForK(const int phase, const double K, ADateTime& dat
 	double total = fineTuneJdeForCycle(phase, K, static_cast<double>(dateTime.year()));
 
 	// Update Julian date-time with new Julian date
-	dateTime.setJulianDateTime(total, true);
+	dateTime.setJulianDateTime(total);
 
 	std::cout << "Next " << s_phaseName[phase] << ": " << dateTime.asString("%F %T [UTC]") << std::endl;
 }
@@ -467,6 +557,11 @@ int AMoon::nextMoonPhase(const ADateTime& dateTime, const int startPhase, const 
 {
 	ADateTime newDate = dateTime;
 	int phase = startPhase;
+
+	if (startPhase == -1)
+	{
+		phase = processPhase(dateTime, m_phase);
+	}
 
 	// Show first phase, at least
 	std::cout << "---------------------------------------" << std::endl;
@@ -500,6 +595,13 @@ int AMoon::nextMoonPhase(const ADateTime& dateTime, const int startPhase, const 
 
 	return phase;
 }
+
+
+int AMoon::nextMoonPhase(const ADateTime& dateTime)
+{
+	return nextMoonPhase(dateTime, m_nextPhase, m_lockMoonPhase, m_numberOfPhases, m_nextMoonCycle);
+}
+
 
 //==========================================================================
 // From http://www.stargazing.net/kepler/

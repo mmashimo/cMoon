@@ -13,13 +13,13 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 ///
 
 
@@ -27,9 +27,25 @@
 #include "ADateTime.h"
 #include "ALocation.h"
 
+enum PlanetType : int
+{
+	All     = -1,
+	Mercury = 0,
+	Venus,
+	Earth,
+	Mars,
+	Jupiter,
+	Saturn,
+	Uranus,
+	Neptune,
+	Pluto
+};
+
+/// @brief Elements (coefficients and such) for computing Planetary positions
 typedef struct structPlanet
 {
 	const char* planetName;
+	const int planetIndex;
 	double inclination;   // * i - inclination of plane of orbit
 	double ascendingNode; // * o - longitude of ascending node at date
 	double perihelion;    // * p - longitude of perihelion at date
@@ -37,14 +53,14 @@ typedef struct structPlanet
 	double dailyMotion;   // * n - daily motion
 	double eccentricity;  //   e - oblique eccentricity
 	double meanLongitude; // * l - mean longitude at date (J2000 meredian)
-} Planets;
+} PlanetDescriptor;
 
 
 
 class APlanets : public AlgBase
 {
 public:
-	APlanets();
+	APlanets(const int planetType = PlanetType::All);
 
 	// APlanets(const DateString& dateString);
 
@@ -54,20 +70,31 @@ public:
 
 	// APlanets& operator=(const APlanets& ref);
 
-	void computePlanets(const ALocation& location, const ADateTime& procTime, int type = -1);
+	/// @brief Compute and displays planet positions from settings in this object
+	void computePlanets(const ALocation& location, const ADateTime& procTime);
 
-	void computePlanetPos(const int type, const double j2000, double& ra, double& dec, double& dist);
+	void computePlanetPos(const PlanetDescriptor& planet, const double j2000, double& ra, double& dec, double& dist);
+
+	void parseArgs(std::string args);
 
 	static int m_verboseLevel;
 
 private:
 	/// @brief Computes a planet's RA/DEC/Alt
-	void computeAPlanet(const ALocation& location, const double j2000, const double md, int type);
+	void computeAPlanet(const PlanetDescriptor& planet, const ALocation& location, const double j2000, const double md);
+
+	/// @brief Displays planets of type
+	void computePlanets(const ALocation& location, const ADateTime& procTime, int type);
+
+	/// @brief Prints all Planet information
+	void printAll(const ALocation& location, const ADateTime& dateTime);
 
 	/// @brief Heliocentric Rectangular Coordinates of Earth (x = 0 is at vernal equinox)
 	double m_xEarth;
 	double m_yEarth;
 	double m_zEarth;
 
+	/// @brief Compute for the planet type
+	int m_planetType;
 };
 

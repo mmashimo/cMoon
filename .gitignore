@@ -7,3 +7,4 @@ Makefile
 Debug/*
 *.json
 cMoon
+cMoon.ini

@@ -1,3 +1,10 @@
+cMoon TODO Bug List:
+-------------------
+
+[ ] - 'Altitude' does not change with time in Planets computation
+[ ] - Planet coordinates do not match known ephemis by a long shot. Test with different apps.
+[ ] - Some alt-azimuth computation is incorrect - possibly due to local/UTC time conversion.
+
 cMoon - TODO
 ------------
 
@@ -9,15 +16,15 @@ cMoon - TODO
         [ ] - Need step-wise quarter phase search
         [ ] - Need 3rd order approximation to get JDE
 
+[ ] - Interactive (with command line processing) of each component of cMoon
+    [ ] - process 'gets' from command line
+    [ ] - create in-line "help"
+    [ ] - create method to do "quick" mode - suppress interactive from command line
+
 [ ] - Function and formats:
     [ ] - Need "Format" in Settings
     [ ] - Moon phase, phase percentage and "days to New" should be configurable precision
     [ ] - Format Date/Time to UTC and local (including am/pm) - Use Settings
-
-[ ] - Interactive (not command line processing) of each component of cMoon
-    [ ] - process 'gets' from command line
-    [ ] - create in-line "help"
-    [ ] - create method to do "quick" mode - suppress interactive from command line
 
 [ ] - Command Line processing:
     [ ] - Make sure all arguments work/documented in help
@@ -62,13 +69,9 @@ cMoon - TODO
     [ ] - Observable objects List should have magnitudes to compute light attenuation of horizon angle conditions, also.
     [ ] - Possible link to Dark Sky Institute's light pollution index for magnitude attentuation, also
 
-cMoon Bug List:
---------------
-    [ ] - 'Altitude' does not change with time in Planets computation
-    [ ] - Planet coordinates do not match known ephemis by a long shot. Test with different apps.
->>> [ ] - Some alt-azimuth computation is incorrect - possibly due to local/UTC time conversion.
-
-
+Tests that may be useful:
+------------------------
+[ ] - Compute moonrise [-r] on November 23, 2020 9:50am. Note Moon rises, but does not set.
 
 Read some math behind the programs:
 ----------------------------------

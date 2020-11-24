@@ -11,13 +11,13 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "pch.h"
 
@@ -59,7 +59,7 @@ void ASun::showSun(const ALocation& location, const ADateTime& procTime)
 
 	// Temporary use of struct tm to get time
 
-	struct tm jTime = dateTime.m_timeStruct;
+	struct tm jTime = dateTime.getTimeStruct();
 
 	// sunrise equation is cos w0 = -tan phi x tan delta
 	// w0 is the hour andle at sunrise (negative) sunset (positive)
@@ -80,7 +80,7 @@ void ASun::showSun(const ALocation& location, const ADateTime& procTime)
 	// Jnoon is the number of days since 2000-1-1-12:00pm (noon) = 2451545.
 	// double Jnoon = jd - 2451545. + 0.0008;
 	// NOTE: Our Julian already computes the UTC time. We need to add the 12-noon (0.5)
-	// double Jnoon = floor(dateTime.julian()) - 2451544.5 + 0.0008;
+	// double Jnoon = floor(dateTime.julianDay()) - 2451544.5 + 0.0008;
 	double Jnoon = dateTime.j2000Noon() + 0.0008;
 
 	// TT was set to 32.184 seconds laggin TAI on January 1958. By 1972, when leap seconds were introduced, 10 sec were added.
@@ -255,7 +255,7 @@ void ASun::showSun(const ALocation& location, const ADateTime& procTime)
 	std::cout << tmpStr << std::endl;
 #endif
 
-	// NOTE: These are all Julian date and franctional time
+	// NOTE: These are all Julian date and fractional time
 
 	std::cout << "-------------------------------------------------" << std::endl << std::endl;
 

@@ -11,13 +11,13 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "pch.h"
 #include <cstdio>
@@ -199,6 +199,26 @@ double AlgBase::localAltitude(const ALocation& location, const double instant, d
 	return sphi * sinDegrees(dec) + cphi * cosDegrees(dec) * cosDegrees(tau);
 }
 
+void AlgBase::convertJulianToDate(const double jd, int& yr, int& mon, int& day)
+{
+    // https://aa.usno.navy.mil/faq/docs/JD_Formula.php
+
+    // Convert JD in AD
+    int l = (int)(jd + 68569);
+    int n = (4 * l) / 146097;
+    l = l - (146097 * n + 3) / 4;
+    int i = 4000 * (l + 1) / 1461001;
+    l = l - 1461 * i / 4 + 31;
+    int j = 80 * l / 2447;
+    int k = l - 2447 * j / 80;
+    l = j / 11;
+    j = j + 2 - 12 * l;
+    i = 100 * (n - 49) + i + l;
+
+    yr = i;
+    mon = j;
+    day = k;
+}
 
 double AlgBase::convertJulianToTime(const double jd, int& hour, int& min, int& sec)
 {
@@ -214,3 +234,29 @@ double AlgBase::convertJulianToTime(const double jd, int& hour, int& min, int& s
     return fSeconds;
 }
 
+double AlgBase::convertTimeToJulian(const int hour, const int min, const int sec)
+{
+    double jd = 0.;
+
+    jd += static_cast<double>(hour) / 24.;
+    jd += static_cast<double>(min) / 1440.;
+    jd += static_cast<double>(sec) / 86400.;
+
+    return jd;
+}
+
+double AlgBase::convertDateToJulianNoon(const int Y, const int M, const int D)
+{
+    // Example of Julian Days is: 2017-3-1 should be 2457813.5
+    // https://www.subsystems.us/uploads/9/8/9/4/98948044/moonphase.pdf
+
+    // (367*y)-int(7*(y+int((m+9)/12))/4)+int(275*m/9)+d+1721013.5
+    // 2001-12-05 should be 2452248.5 (734367 - 3506 + 366 + 5 + 1721013.5)
+    int a = 367 * Y;
+    int b1 = (M + 9) / 12;
+    int b = 7 * (Y + b1) / 4;
+    int c = 275 * M / 9;
+    double jd = a - b + c + D + 1721013.5;
+
+    return jd;
+}

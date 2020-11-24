@@ -13,13 +13,13 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 ///
 #pragma once
 
@@ -73,6 +73,9 @@ public:
     /// @brief Assignment operator
     ADateTime& operator=(const ADateTime& ref);
 
+    //--------------------------------------------------------------------------
+    // String/Argument Parsing Functions
+    //--------------------------------------------------------------------------
     /// @brief Parses short date format: YYYY[0]-MM[1]-DD[2].
     /// NOTE: Does rudimentary date check, but nothing else
     ///
@@ -91,13 +94,20 @@ public:
 
     bool parseJulianTime(const std::string& arg);
 
+    /// @brief Checks if Date and Time are parsed correctly.
+    /// @return true if this instance of ParsedDate and ParsedTime are set correctly
+    bool isParsedCorrectly() const;
+
+    /// @brief - Check parsed date
+    /// @param[in] parsed - date array
+    /// @return - true if correct, false if something went wrong
+    bool isParsedDateOk(const ParsedDate& parsed) const;
+
+
     /// @brief Populates today(now) date and time (time exists)
     ///
     ///@param[in] bUTC - set true if the date/time is to be in UTC
     void todaysDate(const bool bUTC = false);
-
-    /// @brief Converts to Julian Years (in double format)
-    double getJulianYear() const;
 
     /// @brief Converts Julian decimal into time struct
     void convertJulianToTime(const double jd, struct tm& timeOnly);
@@ -105,21 +115,28 @@ public:
     /// @brief Sets Date struct from Julian calendar
     void setFromJulian(const double& jd);
 
+    //--------------------------------------------------------------------------
+    // Display and string formatting methods
+    //--------------------------------------------------------------------------
+
     /// Basic Uses strftime()
     std::string asString(const struct tm& tmStruct, const std::string& format) const;
 
     /// @brief Uses strftime() to get time string
     std::string asString(const std::string& format) const;
 
-    void printASCII();
+    void printASCII() const;
+
+    void showTime(const int format = 0) const;
+    void showDateTime(const int format = 0) const;
 
     /// @brief Sets print statement verbose mode
     /// @param[in] level - 0=quiet(results only) non-zero(prints debug info)
     void setVerboseMode(const int level);
 
-    /// @brief Adds or subtracts days/hours to current time.
-    /// @param[in] days
-    void addDays(const int days);
+    //--------------------------------------------------------------------------
+    // Accessors
+    //--------------------------------------------------------------------------
 
     //--- Accessors ---
     int year() const;
@@ -130,23 +147,23 @@ public:
 
     int dayOfYear() const;
 
+    /// @brief Accessor for Julian day value stored with the instance.
+    /// @return value of double Julian stored with object
     double julian() const;
 
-    double j2000Noon() const;
+    /// @brief Adds or subtracts days/hours to current time.
+    /// @param[in] days
+    void addDays(const int days);
+
+    const struct tm& getTimeStruct(const bool local = false) const;
+
 
     double timeZoneAsFractionOfDay() const;
 
-    bool isParsedCorrectly() const;
 
     /// @brief Set this date-time object to Julian date/time.
     /// @param[in] jd - Julian date to convert this object
-    /// @param[in] updateSelf - if true, contruct timeStruct/parsed
-    void setJulianDateTime(const double jd, const bool updateSelf = true);
-
-#if 0
-    /// @brief Gets hour:min:sec.sss for a given Julian day - return double seconds
-    static double getTimeFromJulian(const double jd, int& hour, int& min, int& sec);
-#endif
+    void setJulianDateTime(const double jd);
 
     /// @brief Returns Julian date/time for a given UTC hour adjusted for local time-zone.
     ///
@@ -159,19 +176,19 @@ public:
     /// @param[in] addTimeZone - add timezone variance to UTC midnite
     ///
     /// @return Julian date/time (described above) of UTC
-    double modifiedJuiianDate(const bool addTimeZone = true);
+    double modifiedJuiianDate(const bool addTimeZone = true) const;
+
+    /// @brief Computes Julian day from struct within.
+    /// @param[in] noon - sets Julian day at noon (ignores time)
+    /// @return Julian day as double
+    double julianDay(const bool noon) const;
 
     /// @brief Computes J2000 time given y,m,d,h
     /// @param[in] utcMidDay - true if conversion uses only mid-day date
     /// @return J2000 Julian date as double
-    double computeJ2000(const bool utcMidDay = true);
+    double j2000Day(const bool utcMidDay = true) const;
 
-    /// @brief - Check parsed date
-    /// @param[in] parsed - date array
-    /// @return - true if correct, false if something went wrong
-    bool isParsedDateOk(const ParsedDate& parsed) const;
-
-
+    double j2000Noon() const;
 
 	/// @brief Verbose level of 0 - is quiet mode
 	static int    m_verboseLevel;
@@ -187,10 +204,6 @@ public:
 	//--- Date Members ---
     /// @brief default use of time-zone computation
     static bool m_autoComputeTimeZone;
-
-	/// @brief Time struct for UTC time
-	struct tm m_timeStruct;
-
 
 private:
     /// @brief Copies internals for copy constructor and assignment operator
@@ -220,12 +233,14 @@ private:
     /// @brief Converts ParsedDate to struct tm
     void convertDateFromArray(const ParsedDate& parsedDate, const ParsedTime& parsedTime, const bool toUtc = false);
 
+	/// @brief Time struct for UTC time
+	struct tm  m_timeStruct;
 
 	/// @brief Time in integer format - number of seconds since 
-	time_t    m_rawTime;
+	time_t     m_rawTime;
 
 	/// @brief Time struct used to keep track of local time, if needed
-	struct tm m_localTimeStruct;
+	struct tm  m_localTimeStruct;
 
     /// @brief Julian Year Calndar - Full date format
 	double     m_julian;

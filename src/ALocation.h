@@ -13,13 +13,13 @@
 /// the Free Software Foundation, either version 3 of the License, or
 /// any later version.
 ///
-/// Foobar is distributed in the hope that it will be useful,
+/// cMoon is distributed in the hope that it will be useful,
 /// but WITHOUT ANY WARRANTY; without even the implied warranty of
 /// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 /// GNU General Public License for more details.
 ///
 /// You should have received a copy of the GNU General Public License
-/// along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+/// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 ///
 
 #pragma once
@@ -45,7 +45,11 @@ public:
 	/// @brief Get Coordinates (LAT/LONG) both or individually
 	/// @param[out] latitude
 	/// @param[out] longitude
-	void getCoordinates(double& latitude, double& longitude);
+	void getCoordinates(double& latitude, double& longitude) const;
+
+	/// @brief Displays LAT/LONG in display format
+	/// @param[in] format
+	void displayCoordinates(const int format = 0) const;
 
 	// In-line accessors
 	double latitude() const  { return m_latitude; }
