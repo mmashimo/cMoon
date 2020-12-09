@@ -42,6 +42,7 @@ set (CMOON_SRCS
   src/ASun.cpp
   src/APlanets.cpp
   src/settings.cpp
+  src/interpreter.cpp
 )
 
 # add_library(cMoon_obj OBJECT ${CMOON_SRCS})

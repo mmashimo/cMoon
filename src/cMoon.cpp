@@ -40,6 +40,8 @@
 
 #include "settings.hpp"
 
+#include "interpreter.hpp"
+
 using namespace std;
 
 // Header - if 0 - generic. If < 0, suppress
@@ -294,9 +296,9 @@ void printExtraHelp(const char* options)
 		std::cout << "  [--save[=<ini_file>]]- Save current configuration to INI or to <ini_file> (use '=' to set filename from exec-dir)" << std::endl;
 	}
 #ifdef WIN32
-	else if ((_strcmp(options, "notes") == 0)
+	else if ((_strnicmp(options, "notes") == 0)
 #else
-	else if (strcmp(options, "notes") == 0)
+	else if (strcasecmp(options, "notes") == 0)
 #endif
 	{
 		std::cout << "NOTES:" << std::endl;
@@ -636,6 +638,8 @@ int main(int argc, char** argv)
 				}
 				else if (isdigit(ar[0]))
 				{
+					dateObj.parseDateTime(ar);
+#if 0
 					// Date or time entry
 					if (nullptr != strchr(ar, '-'))
 					{
@@ -672,6 +676,7 @@ int main(int argc, char** argv)
 							std::cout << "!!! Invalid time string: '" << ar << " <= trying number of seconds from midnight" << std::endl;
 						}
 					}
+#endif
 				}
 	#ifdef WIN32
 				else if (_stricmp(ar, "now") == 0)
@@ -707,69 +712,19 @@ int main(int argc, char** argv)
 
 	if (bProcess && dateObj.isParsedCorrectly())
 	{
-		location.displayCoordinates();
-
-		dateObj.showDateTime();
-
 		if (s_doInteractive)
 		{
-			std::cout << std::endl << "--- Interactive mode (type '?' or 'help <subject>' for help; 'q' to quit) ---" << std::endl << std::endl;
+			Interpreter interpret(dateObj, location, moonObj, sunObj, planets);
 
-			// Run through the program interactively
-			bool bDone = false;
-			std::string buffer;
+			std::cout << "--- Interactive mode (type '?' or 'help <subject>' for help; 'q' to quit) ---" << std::endl << std::endl;
 
-			while (!bDone)
-			{
-				std::cout << "Prompt> ";
-				// This should block:
-				std::getline(std::cin, buffer);
-
-				switch(buffer[0])
-				{
-					case '?':
-					case 'h':
-						std::cout << "Help!" << std::endl;
-						break;
-					case 'm':  // Moon phase
-					case 'M':
-						moonObj.moonPhase(dateObj);
-						break;
-					case 'n':
-					case 'N': // Next moon phase
-#if 0
-						moonObj.nextMoonPhase(dateObj, s_nextPhase, s_lockMoonPhase, s_numberOfPhases, s_nextMoonCycle);
-#endif
-						moonObj.nextMoonPhase(dateObj);
-						break;
-					case 'p':	// Planets
-					case 'P':
-						planets.computePlanets(location, dateObj);
-						break;
-
-					case 'q':	// Quit/end
-					case 'Q':
-						bDone = true;
-						break;
-
-					case 'r':	// Moonrise
-					case 'R':
-						moonObj.moonRise(location, dateObj);
-						break;
-
-					case 's':
-					case 'S':
-						sunObj.showSun(location, dateObj);
-						break;
-
-					default:
-						std::cout << "Command: '" << buffer << "' -- do not understand" << std::endl;
-						break;
-				}
-			}
+			interpret.parse();
 		}
 		else
 		{
+			location.displayCoordinates();
+			dateObj.showDateTime();
+
 			// If nothing is set, then print all
 			if (!s_computeSun && !s_computeMoonPhase && !s_computeMoonRise && !s_computeNextMoon && !s_computePlanets)
 			{
@@ -792,9 +747,6 @@ int main(int argc, char** argv)
 
 			if (s_computeNextMoon)
 			{
-#if 0
-				moonObj.nextMoonPhase(dateObj, s_nextPhase, s_lockMoonPhase, s_numberOfPhases, s_nextMoonCycle);
-#endif
 				moonObj.nextMoonPhase(dateObj);
 			}
 

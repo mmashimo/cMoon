@@ -203,6 +203,50 @@ void ADateTime::setTimeZone()
 
 }
 
+bool ADateTime::parseDateTime(const char* ar)
+{
+    bool bGoodDate = false;
+
+    // Date or time entry
+    if (nullptr != strchr(ar, '-'))
+    {
+        bGoodDate = parseDate(ar, m_parsedDate);
+        if (!bGoodDate)
+        {
+            std::cout << "!!! Invalid date string: '" << ar << " <= found '-' but date not in YYYY-MM-DD format" << std::endl;
+        }
+    }
+    else if (nullptr != strchr(ar, ':'))
+    {
+        bGoodDate = parseTime(ar);
+        if (!bGoodDate)
+        {
+            std::cout << "!!! Invalid time string: '" << ar << " <= found ':' but time not in HH:MM[:SS] format" << std::endl;
+        }
+    }
+    else if ((nullptr != strchr(ar, '.')) || (isdigit(*ar)))
+    {
+        // Compute using Julian date/time
+        bGoodDate = parseJulianTime(ar);
+        if (!bGoodDate)
+        {
+            std::cout << "!!! Invalid Julian decimal format: '" << ar << " <= found '.' but date not in J.d format" << std::endl;
+        }
+    }
+    else
+    {
+        // Parse time by number of seconds from midnight
+        bGoodDate = parseTime(ar);
+        if (!bGoodDate)
+        {
+            std::cout << "!!! Invalid time string: '" << ar << " <= trying number of seconds from midnight" << std::endl;
+        }
+    }
+
+    return bGoodDate;
+}
+
+
 bool ADateTime::parseDate(const DateString& arg, ParsedDate& parsedDate)
 {
     bool isOK{ false };
@@ -477,37 +521,6 @@ void ADateTime::convertDateFromArray(const ParsedDate& parsedDate, const ParsedT
         // Convert to local time
         mktime(&m_timeStruct);
     }
-
-#if 0
-    if (toUtc)
-    {
-        // Converting UTC
-        mktime(&m_timeStruct);
-
-        if (m_parsedTime.m_24hr)
-        {
-            m_timeStruct.tm_hour = m_parsedTime.m_Time[0];
-        }
-        else if (m_parsedTime.m_amPm)
-        {
-            m_timeStruct.tm_hour = (m_parsedTime.m_Time[0] == 0) ? 12 : m_parsedTime.m_Time[0];
-        }
-        else
-        {
-            m_timeStruct.tm_hour = (m_parsedTime.m_Time[0] == 12) ? 12 : m_parsedTime.m_Time[0] + 12;
-        }
-
-        m_timeStruct.tm_min = m_parsedTime.m_Time[1];
-        m_timeStruct.tm_sec = m_parsedTime.m_Time[2];
-
-        m_timeStruct.tm_isdst = 0;
-    }
-    else
-    {
-        mktime(&m_timeStruct);
-    }
-#endif
-
 }
 
 
@@ -537,23 +550,6 @@ void ADateTime::setFromJulian(const double& jd)
     m_julian = jd;
 
     AlgBase::convertJulianToDate(jd, m_parsedDate[0], m_parsedDate[1], m_parsedDate[2]);
-
-#if 0
-    // Convert JD in AD
-    int l = (int)(jd + 68569);
-    int n = (4 * l) / 146097;
-    l = l - (146097 * n + 3) / 4;
-    int i = 4000 * (l + 1) / 1461001;
-    l = l - 1461 * i / 4 + 31;
-    int j = 80 * l / 2447;
-    int k = l - 2447 * j / 80;
-    l = j / 11;
-    j = j + 2 - 12 * l;
-    i = 100 * (n - 49) + i + l;
-    m_parsedDate[0] = i;
-    m_parsedDate[1] = j;
-    m_parsedDate[2] = k;
-#endif
 
     // Get time while at it
     convertJulianToTime(jd, m_timeStruct);
@@ -746,5 +742,23 @@ double ADateTime::j2000Day(const bool utcMidDay) const
 double ADateTime::j2000Noon() const
 {
     return floor(m_julian) - 2451544.5;
+}
+
+
+#include <stdint.h>
+// Conversion of FILETIME (input) to Unix time (return)
+#define NANOSEC_PER_SECOND 10000000
+#define EPOCH_DIFFERENCE 11644473600LL
+time_t convertWindowsFileTimeToUnixTime(const uint64_t fileTime)
+{
+    uint64_t utime = fileTime / NANOSEC_PER_SECOND; // 100ns intervals to seconds;
+    utime = utime - EPOCH_DIFFERENCE;                    // number of seconds between FILETIME 1601 to 1970 epochs
+    return static_cast<time_t>(utime);
+}
+
+uint64_t convertUnixTimeToWindowsFileTime(const time_t utime)
+{
+    uint64_t ftime = utime + EPOCH_DIFFERENCE;
+    return ftime * NANOSEC_PER_SECOND;
 }
 

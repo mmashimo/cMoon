@@ -76,6 +76,9 @@ public:
     //--------------------------------------------------------------------------
     // String/Argument Parsing Functions
     //--------------------------------------------------------------------------
+
+	bool parseDateTime(const char* ar);
+
     /// @brief Parses short date format: YYYY[0]-MM[1]-DD[2].
     /// NOTE: Does rudimentary date check, but nothing else
     ///
