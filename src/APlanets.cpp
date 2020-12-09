@@ -29,9 +29,9 @@
 
 // static constexpr double pi{3.14159265358979323846};
 
-static double twoPi = 2. * M_PI;
-static double rads = M_PI / 180.;
-static double degs = 180. / M_PI;
+constexpr double twoPi = 2. * __pi;
+constexpr double rads = __pi / 180.;
+constexpr double degs = 180. / __pi;
 
 static constexpr double elementsDate{2450680.5};  // date of elements
 static constexpr double eclipticDate{2451545.};   // date of mean ecliptic and equinox of
@@ -52,12 +52,10 @@ static std::vector<PlanetDescriptor> planetDescrip
 
 int APlanets::m_verboseLevel = 0;
 
-/// @brief Constructor
+/// @brief Constructor - Start with Earth as the center of view
 APlanets::APlanets(const int planetType)
 	: AlgBase()
-	, m_xEarth{0}
-	, m_yEarth{0}
-	, m_zEarth{0}
+	, m_viewPos{planetDescrip[Earth],0,0,0}
 	, m_planetType(planetType)
 {
 	// Nothing here
@@ -190,9 +188,11 @@ static double angleInRange(const double x)
 	return a;
 }
 
-static void findPosition(const PlanetDescriptor& planet, const double d, double& xh, double& yh, double& zh)
+static void computeViewPosition(OrbitPos& orbit, const double d)
 {
 	// Position of planet in its orbit
+	PlanetDescriptor &planet = orbit.description;
+
 	double eldate = elementsDate - eclipticDate;
 	double pp = planet.perihelion;
 
@@ -209,37 +209,54 @@ static void findPosition(const PlanetDescriptor& planet, const double d, double&
 	double rp = ap * (1 - (ep * ep)) / (1 + (ep * cos(vp)));
 	double vep = vp + pp;
 
-	if (planet.planetIndex == PlanetType::Earth)
+	// Heliocentric coords of earth
+	// double vep = vp + pp;
+	orbit.m_X = rp * cos(vep);
+	orbit.m_Y = rp * sin(vep);
+	orbit.m_Z = 0.;
+
+	std::cout << "Coord of " << planet.planetName << " : X=" << orbit.m_X << " Y=" << orbit.m_Y << std::endl;
+
+	if (APlanets::m_verboseLevel & DebugComputation)
 	{
-		// Heliocentric coords of earth
-		// double vep = vp + pp;
-		xh = rp * cos(vep);
-		yh = rp * sin(vep);
-		zh = 0.;
-
-		std::cout << "Coord of Earth: X=" << xh << " Y=" << yh << std::endl;
-
-		if (APlanets::m_verboseLevel & DebugComputation)
-		{
-			std::cout << "Earth mean anomaly= " << mp << " true anomaly=" << vp << " radius pos=" << rp << " radian vector=" << vep << std::endl;
-		}
+		std::cout << planet.planetName <<" mean anomaly= " << mp << " true anomaly=" << vp << " radius pos=" << rp << " radian vector=" << vep << std::endl;
 	}
-	else
+}
+
+static void findPosition(OrbitPos& orbit, const double d)
+{
+	// Position of planet in its orbit
+	PlanetDescriptor &planet = orbit.description;
+
+	double eldate = elementsDate - eclipticDate;
+	double pp = planet.perihelion;
+
+	double mp = angleInRange((planet.dailyMotion * (d - eldate)) + planet.meanLongitude - pp);
+
+	double ep = planet.eccentricity;
+	double op = planet.ascendingNode;
+	double ap = planet.semiMajorAxis;
+	double ip = planet.inclination;
+
+	double vp = computeTrueAnomaly(mp, ep, 12);
+
+
+	double rp = ap * (1 - (ep * ep)) / (1 + (ep * cos(vp)));
+	double vep = vp + pp;
+
+	// heliocentric rectangular coordinates of planet
+	// double vep = vp + pp - op;
+	vep -= op;
+	orbit.m_X = rp * (cos(op) * cos(vep) - sin(op) * sin(vep) * cos(ip));
+	orbit.m_Y = rp * (sin(op) * cos(vep) + cos(op) * sin(vep) * cos(ip));
+	orbit.m_Z = rp * (sin(vep) * sin(ip));
+
+	std::cout << "Coord of " << planet.planetName << ": X=" << orbit.m_X << " Y=" << orbit.m_Y << " Z=" << orbit.m_Z << std::endl;
+
+	if (APlanets::m_verboseLevel & DebugComputation)
 	{
-		// heliocentric rectangular coordinates of planet
-		// double vep = vp + pp - op;
-		vep -= op;
-		xh = rp * (cos(op) * cos(vep) - sin(op) * sin(vep) * cos(ip));
-		yh = rp * (sin(op) * cos(vep) + cos(op) * sin(vep) * cos(ip));
-		zh = rp * (sin(vep) * sin(ip));
-
-		std::cout << "Coord of " << planet.planetName << ": X=" << xh << " Y=" << yh << " Z=" << zh << std::endl;
-
-		if (APlanets::m_verboseLevel & DebugComputation)
-		{
-			std::cout << planet.planetName << " mean anomaly= " << mp << " true anomaly=" << vp << " radius pos=" << rp << " radian vector=" << vep << std::endl;
-			std::cout << planet.planetName << " inclination= " << ip << " ascending node=" << ip << " perihelion=" << pp << " semi-Major axis=" << ap << std::endl;
-		}
+		std::cout << planet.planetName << " mean anomaly= " << mp << " true anomaly=" << vp << " radius pos=" << rp << " radian vector=" << vep << std::endl;
+		std::cout << planet.planetName << " inclination= " << ip << " ascending node=" << ip << " perihelion=" << pp << " semi-Major axis=" << ap << std::endl;
 	}
 }
 
@@ -267,17 +284,16 @@ static void printDegrees(char* str, const double deg)
 // RA, DEC are in degrees
 void APlanets::computePlanetPos(const PlanetDescriptor& planet, const double j2000, double& ra, double& dec, double& dist)
 {
-	double x{0.};
-	double y{0.};
-	double z{0.};
+	OrbitPos orbit{planet, 0,0,0};
 
 	// Planet's position - use internal variables
-	findPosition(planet, j2000, x, y, z);
+	findPosition(orbit, j2000);
 
 	// convert to geocentric rectangular coordinates
-	double xg = x - m_xEarth;
-	double yg = y - m_yEarth;
-	double zg = z;
+	double xg = orbit.m_X - m_viewPos.m_X;
+	double yg = orbit.m_Y - m_viewPos.m_Y;
+	double zg = orbit.m_Z;
+
 
 	// rotate around x axis from ecliptic to equatorial coords
 
@@ -361,7 +377,7 @@ void APlanets::computePlanets(const ALocation& location, const ADateTime& procTi
 	std::cout << "....................................." << std::endl;
 
 	// Earth's position needs to be computed first to figure out the vectors
-	findPosition(planetDescrip[PlanetType::Earth], d, m_xEarth, m_yEarth, m_zEarth);
+	computeViewPosition(m_viewPos, d);
 
 	// Compute all the planets except Earth
 	std::vector<int>list{0,1,3,4,5,6,7,8};

@@ -28,10 +28,19 @@
 
 #include "ALocation.h"
 
+#include <boost/math/constants/constants.hpp>
+
+/// @brief PI used as a constant.
+// From: https://stackoverflow.com/questions/14954066/does-the-c-standard-library-define-pi
+// long double __pi = boost::math::constants::pi<long double>();
+constexpr double __pi = boost::math::double_constants::pi;
+
 class AlgBase
 {
 public:
 	AlgBase() {}
+
+	static double pi() {return __pi; }
 
 	static double fpart(const double x);
 

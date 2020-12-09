@@ -157,11 +157,11 @@ double AlgBase::fnatn2(const double y, const double x)
     double a = atan(y / x);
     if (x < 0)
     {
-        a = a + M_PI;
+        a = a + __pi;
     }
     if ((y < 0) && (x > 0))
     {
-        a = a + (M_PI * 2);
+        a = a + (__pi * 2);
     }
 
     return a;

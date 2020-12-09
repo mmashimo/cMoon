@@ -21,7 +21,7 @@
 /// You should have received a copy of the GNU General Public License
 /// along with cMoon.  If not, see <https://www.gnu.org/licenses/>.
 ///
-
+#pragma once
 
 #include "AlgBase.h"
 #include "ADateTime.h"
@@ -42,7 +42,7 @@ enum PlanetType : int
 };
 
 /// @brief Elements (coefficients and such) for computing Planetary positions
-typedef struct structPlanet
+using PlanetDescriptor = struct structPlanet
 {
 	const char* planetName;
 	const int planetIndex;
@@ -53,8 +53,19 @@ typedef struct structPlanet
 	double dailyMotion;   // * n - daily motion
 	double eccentricity;  //   e - oblique eccentricity
 	double meanLongitude; // * l - mean longitude at date (J2000 meredian)
-} PlanetDescriptor;
+};
 
+/// @brief Used for general planet/object computation orbiting the Sun
+using OrbitPos = struct structOrbit
+{
+	// Planet/object description
+	PlanetDescriptor description;
+
+	// Planet coordinates
+	double m_X;
+	double m_Y;
+	double m_Z;
+};
 
 
 class APlanets : public AlgBase
@@ -90,10 +101,12 @@ private:
 	void printAll(const ALocation& location, const ADateTime& dateTime);
 
 	/// @brief Heliocentric Rectangular Coordinates of Earth (x = 0 is at vernal equinox)
+	OrbitPos m_viewPos;
+#if 0
 	double m_xEarth;
 	double m_yEarth;
 	double m_zEarth;
-
+#endif
 	/// @brief Compute for the planet type
 	int m_planetType;
 };
